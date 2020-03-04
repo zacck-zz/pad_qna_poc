@@ -7,6 +7,7 @@ const app = Elm.Main.init({
   node: document.querySelector('main')
 })
 
+console.log(app)
 app.ports.startRecording.subscribe(function() {
 	console.log("Now we record audio");
 	recordAudio();
@@ -20,8 +21,7 @@ app.ports.stopRecording.subscribe(function() {
 	// make blob of our data
 	var file = new Blob(recordedAudio, {type: 'audio/wav'});
 	const audioUrl = URL.createObjectURL(file);
-	console.log(app)
-
+	app.ports.consumeAudio.send(audioUrl)
 	//const audio = new Audio(audioUrl);
 	//audio.play();
 
