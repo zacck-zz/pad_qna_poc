@@ -22,7 +22,8 @@ init _  =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  Sub.none
+  Sub.batch
+    [ consumeAudio UploadAnswer ]
 
 type alias Model =
   { answer : Maybe String }
