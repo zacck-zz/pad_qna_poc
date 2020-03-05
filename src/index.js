@@ -18,13 +18,6 @@ app.ports.stopRecording.subscribe(function() {
 	console.log(mediaRecorder.state);
 	mediaRecorder.stop();
 	console.log(mediaRecorder.state);
-	// make blob of our data
-	var file = new Blob(recordedAudio, {type: 'audio/wav'});
-	const audioUrl = URL.createObjectURL(file);
-	app.ports.consumeAudio.send(audioUrl)
-	//const audio = new Audio(audioUrl);
-	//audio.play();
-
 })
 
 
@@ -40,9 +33,28 @@ function recordAudio() {
 		mediaRecorder.start();
 		console.log(mediaRecorder.state);
 		console.log("recorder started");
+
+		mediaRecorder.onstop = handleBlob;
 	})
 }
 
+function handleBlob(event) {
+	console.log("media recorder stopped");
+
+	var file = new Blob(recordedAudio, {type: 'audio/wav'});
+
+	var reader = new FileReader();
+
+	reader.onload = function() {
+		console.log("recorded result read as binary ");
+		var dataUrl = reader.result;
+    var base64 = dataUrl.split(',')[1];
+		console.log(base64);
+		app.ports.consumeAudio.send(base64);
+	}
+
+	reader.readAsDataURL(file);
+}
 
 // handle recorded stream
 function handleRecordedData(event) {
