@@ -2,6 +2,9 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
+import Bytes exposing (Bytes)
+import Bytes.Decode as BDecode
+import Base64
 import File exposing (File)
 import Html exposing (Html, button, div, h1, text)
 import Html.Events exposing (onClick)
@@ -18,7 +21,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _  =
-  ({answer = Nothing }, Cmd.none)
+  ({audio = Nothing }, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -26,7 +29,7 @@ subscriptions _ =
     [ consumeAudio UploadAnswer ]
 
 type alias Model =
-  { answer : Maybe String }
+  { audio : Maybe Bytes}
 
 type Msg =
   StartRecording
@@ -52,9 +55,10 @@ update msg model =
 
     UploadAnswer ans ->
       let
-          newModel = { model | answer = Just ans}
+          byted =
+            Base64.toBytes ans
       in
-      (newModel, Cmd.none)
+      ({ model | audio = byted } , Cmd.none)
 view : Model -> Html Msg
 view model =
         div []
@@ -63,6 +67,7 @@ view model =
         , h1 [] [ text "            " ]
         , button [ onClick StopRecording] [ text "Stop" ]
         ]
+
 
 
 port startRecording : () -> Cmd msg
