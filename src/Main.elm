@@ -9,6 +9,7 @@ import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, button, div, h1, text)
 import Html.Events exposing (onClick)
+import Http exposing (bytesPart, multipartBody)
 import Task
 import Url exposing (..)
 
@@ -23,7 +24,7 @@ main =
 
 init : () -> ( Model, Cmd Msg )
 init _  =
-  ({audio = Nothing }, Cmd.none)
+  ({audio = Nothing, resp = "Nothign Uploaded"}, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -31,7 +32,9 @@ subscriptions _ =
     [ consumeAudio UploadAnswer ]
 
 type alias Model =
-  { audio : Maybe Bytes}
+  { audio : Maybe Bytes
+  , resp : String
+  }
 
 type Msg =
   StartRecording
@@ -40,6 +43,8 @@ type Msg =
   | WavRequested
   | WavLoaded File
   | ByteUploadedFile Bytes
+  | SendToServer
+  | GotUploadResponse (Result Http.Error String)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -78,15 +83,45 @@ update msg model =
     ByteUploadedFile bytes ->
       ({ model | audio = Just bytes}, Cmd.none)
 
+    SendToServer ->
+      case model.audio of
+        Nothing ->
+          (model, Cmd.none) {- Should be covered using error handling -}
+
+        Just b ->
+          let
+              body =
+                multipartBody
+                  [ bytesPart "audio" "audio/wav" b ]
+          in
+              (model
+              ,Http.post
+                { url = "http://localhost:5000"
+                , body = body
+                , expect = Http.expectString GotUploadResponse
+                }
+              )
+
+    GotUploadResponse res ->
+      case res of
+        Ok text ->
+          ({model | resp = text}, Cmd.none)
+
+        Err _ ->
+          ({model | resp = "We broke something"}, Cmd.none)
+
 view : Model -> Html Msg
 view model =
         div []
-        [ h1 [] [ text "Answer Recorder" ]
+        [ h1 [] [ text ("Status: " ++ model.resp) ]
+        , h1 [] [ text "Answer Recorder" ]
         , button [ onClick StartRecording ] [ text "Record"]
         , h1 [] [ text "            " ]
         , button [ onClick StopRecording] [ text "Stop" ]
         , h1 []  [ text "Upload file instead"]
-        , button [ onClick WavRequested] [ text "Upload Answer" ]
+        , button [ onClick WavRequested] [ text "Upload Audio" ]
+        , h1 []  [ text "        "]
+        , button [ onClick SendToServer ] [text "Upload Answer"]
         ]
 
 
