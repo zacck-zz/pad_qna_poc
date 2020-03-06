@@ -6,8 +6,10 @@ import Bytes exposing (Bytes)
 import Bytes.Decode as BDecode
 import Base64
 import File exposing (File)
+import File.Select as Select
 import Html exposing (Html, button, div, h1, text)
 import Html.Events exposing (onClick)
+import Task
 import Url exposing (..)
 
 
@@ -35,6 +37,9 @@ type Msg =
   StartRecording
   | StopRecording
   | UploadAnswer String
+  | WavRequested
+  | WavLoaded File
+  | ByteUploadedFile Bytes
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -59,6 +64,20 @@ update msg model =
             Base64.toBytes ans
       in
       ({ model | audio = byted } , Cmd.none)
+
+    WavRequested ->
+      (model
+      , Select.file ["audio/wav"] WavLoaded
+      )
+
+    WavLoaded file ->
+      (model
+      , Task.perform ByteUploadedFile (File.toBytes file)
+      )
+
+    ByteUploadedFile bytes ->
+      ({ model | audio = Just bytes}, Cmd.none)
+
 view : Model -> Html Msg
 view model =
         div []
@@ -66,6 +85,8 @@ view model =
         , button [ onClick StartRecording ] [ text "Record"]
         , h1 [] [ text "            " ]
         , button [ onClick StopRecording] [ text "Stop" ]
+        , h1 []  [ text "Upload file instead"]
+        , button [ onClick WavRequested] [ text "Upload Answer" ]
         ]
 
 
