@@ -24,7 +24,8 @@ app.ports.stopRecording.subscribe(function() {
 // set up user media
 function recordAudio() {
 	navigator.mediaDevices.getUserMedia({
-		audio: true
+		audio: true,
+		video: false
 	})
 	.then(function(stream) {
 		mediaRecorder = new MediaRecorder(stream);
@@ -41,7 +42,7 @@ function recordAudio() {
 function handleBlob(event) {
 	console.log("media recorder stopped");
 
-	var file = new Blob(recordedAudio, {type: 'audio/wav'});
+	var file = new Blob(recordedAudio, {type: 'audio/ogg; codecs=opus'});
 
 	var reader = new FileReader();
 
