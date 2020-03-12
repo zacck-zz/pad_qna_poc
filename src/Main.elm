@@ -9,7 +9,7 @@ import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, button, div, h1, text)
 import Html.Events exposing (onClick)
-import Http exposing (bytesPart, multipartBody)
+import Http exposing (bytesPart, multipartBody, stringPart)
 import Task
 import Url exposing (..)
 
@@ -44,7 +44,7 @@ type Msg =
   | WavLoaded File
   | ByteUploadedFile Bytes
   | SendToServer
-  | GotUploadResponse (Result Http.Error String)
+  | GotUploadResponse (Result Http.Error ())
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -54,21 +54,21 @@ update msg model =
           start =
             startRecording ()
       in
-      (model, start)
+      ({ model | resp = "Recording..."}, start)
 
     StopRecording ->
       let
           stop =
             stopRecording ()
       in
-      (model, stop)
+      ({ model | resp = "Recording Done ..."}, stop)
 
     UploadAnswer ans ->
       let
           byted =
             Base64.toBytes ans
       in
-      ({ model | audio = byted } , Cmd.none)
+      ({ model | audio = byted, resp = "Recording Ready for Upload"} , Cmd.none)
 
     WavRequested ->
       (model
@@ -81,7 +81,7 @@ update msg model =
       )
 
     ByteUploadedFile bytes ->
-      ({ model | audio = Just bytes}, Cmd.none)
+      ({ model | audio = Just bytes, resp = "File Ready for Upload"}, Cmd.none)
 
     SendToServer ->
       case model.audio of
@@ -92,20 +92,23 @@ update msg model =
           let
               body =
                 multipartBody
-                  [ bytesPart "audio" "audio/wav" b ]
+                  [ bytesPart "audio" "audio/*" b
+                  , stringPart "description" "some parts"
+                  , stringPart "tags" " some tags"
+                  ]
           in
               (model
               ,Http.post
-                { url = "http://localhost:5000"
+                { url = "http://localhost:5000/add"
                 , body = body
-                , expect = Http.expectString GotUploadResponse
+                , expect = Http.expectWhatever GotUploadResponse
                 }
               )
 
     GotUploadResponse res ->
       case res of
-        Ok text ->
-          ({model | resp = text}, Cmd.none)
+        Ok _ ->
+          ({model | resp = "uploaded"}, Cmd.none)
 
         Err _ ->
           ({model | resp = "We broke something"}, Cmd.none)
