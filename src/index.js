@@ -3,9 +3,7 @@ import { Elm } from './Main.elm'
 let mediaRecorder;
 let recordedAudio =  [];
 
-const app = Elm.Main.init({
-  node: document.querySelector('main')
-})
+const app = Elm.Main.init({ flags:  {}})
 
 console.log(app)
 app.ports.startRecording.subscribe(function() {
