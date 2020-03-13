@@ -181,9 +181,6 @@ update msg model =
           ({ model | answers = a}, Cmd.none)
 
         Err e ->
-          let
-             _ = Debug.log "errors" e
-          in
           ( {model | resp = "Problem when fetching answers"}
           , Cmd.none
           )
@@ -196,9 +193,6 @@ update msg model =
           )
 
         Err err ->
-          let
-             _ = Debug.log "q err"  err
-          in
           ({ model | resp = "Problem when fetching questions" }
           , Cmd.none
           )
