@@ -5,26 +5,47 @@ import Browser.Navigation as Nav
 import Bytes exposing (Bytes)
 import Bytes.Decode as BDecode
 import Base64
+import Json.Decode as JD exposing(Decoder, at, int, map3, map4,string)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, button, div, h1, text)
+import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick)
+import Html.Attributes exposing (class, controls, cols, for, id, type_, src, rows, value)
 import Http exposing (bytesPart, multipartBody, stringPart)
 import Task
 import Url exposing (..)
 
 
+main : Program () Model Msg
 main =
-  Browser.element
+  Browser.application
     { init = init
     , update = update
     , view = view
     , subscriptions = subscriptions
+    , onUrlChange = UrlChanged
+    , onUrlRequest = LinkClicked
     }
 
-init : () -> ( Model, Cmd Msg )
-init _  =
-  ({audio = Nothing, resp = "Nothign Uploaded"}, Cmd.none)
+init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+  let
+      mod =
+         {audio = Nothing
+         , resp = "Nothign Uploaded"
+         , answers = []
+         , questions = []
+         , key = key
+         , url = url
+         }
+
+      cmds =
+        Cmd.batch
+          [ getAnswers
+          , getQuestions
+          ]
+  in
+  (mod, cmds)
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -34,6 +55,10 @@ subscriptions _ =
 type alias Model =
   { audio : Maybe Bytes
   , resp : String
+  , answers : List Answer
+  , questions : List Question
+  , key : Nav.Key
+  , url : Url.Url
   }
 
 type Msg =
@@ -45,6 +70,11 @@ type Msg =
   | ByteUploadedFile Bytes
   | SendToServer
   | GotUploadResponse (Result Http.Error ())
+  | GotAnswers (Result Http.Error (List Answer))
+  | LinkClicked Browser.UrlRequest
+  | UrlChanged Url.Url
+  | GotQuestions (Result Http.Error (List Question ))
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -113,20 +143,210 @@ update msg model =
         Err _ ->
           ({model | resp = "We broke something"}, Cmd.none)
 
-view : Model -> Html Msg
-view model =
-        div []
-        [ h1 [] [ text ("Status: " ++ model.resp) ]
-        , h1 [] [ text "Answer Recorder" ]
-        , button [ onClick StartRecording ] [ text "Record"]
-        , h1 [] [ text "            " ]
-        , button [ onClick StopRecording] [ text "Stop" ]
-        , h1 []  [ text "Upload file instead"]
-        , button [ onClick WavRequested] [ text "Upload Audio" ]
-        , h1 []  [ text "        "]
-        , button [ onClick SendToServer ] [text "Upload Answer"]
-        ]
+    GotAnswers res ->
+      case res of
+        Ok a ->
+          ({ model | answers = a}, Cmd.none)
 
+        Err e ->
+          let
+             _ = Debug.log "errors" e
+          in
+          ( {model | resp = "Problem when fetching answers"}
+          , Cmd.none
+          )
+
+    GotQuestions res ->
+      case res of
+        Ok q ->
+          ({ model | questions = q}
+          , Cmd.none
+          )
+
+        Err err ->
+          let
+             _ = Debug.log "q err"  err
+          in
+          ({ model | resp = "Problem when fetching questions" }
+          , Cmd.none
+          )
+
+    LinkClicked urlRequest ->
+      case urlRequest of
+        Browser.Internal url ->
+          ( model, Nav.pushUrl model.key (Url.toString url) )
+
+        Browser.External href ->
+          ( model, Nav.load href )
+
+    UrlChanged url ->
+      ( { model | url = url }
+      , Cmd.none
+      )
+
+type alias Question =
+  { q_audio: String
+  , q_id: Int
+  , q_meta: String
+  }
+
+questionDecoder : Decoder Question
+questionDecoder =
+  map3 Question
+    (at ["q_audio"] string)
+    (at ["q_id"] int)
+    (at ["q_meta"] string)
+
+questionsDecoder : Decoder (List Question)
+questionsDecoder =
+  JD.list questionDecoder
+
+getQuestions : Cmd Msg
+getQuestions =
+  Http.get
+    { url = "http://localhost:5000/list-questions/master"
+    , expect = Http.expectJson GotQuestions questionsDecoder
+    }
+
+type alias Answer =
+  { audio_url: String
+  , description: String
+  , fname: String
+  , tags: String
+  }
+
+answerDecoder : Decoder Answer
+answerDecoder =
+  map4 Answer
+    (at ["audio_url"] string)
+    (at ["description"] string)
+    (at ["fname"] string)
+    (at ["tags"] string)
+
+getAnswers : Cmd Msg
+getAnswers =
+  Http.get
+    { url = "http://localhost:5000/list"
+    , expect = Http.expectJson GotAnswers answersDecoder
+    }
+
+
+answersDecoder : Decoder (List Answer)
+answersDecoder =
+  JD.list answerDecoder
+
+
+
+view : Model -> Browser.Document Msg
+view model =
+  let
+      views =
+        div [ class "container" ]
+        [ viewQuestions model
+        , div [ id "send-col"]
+              [ button [ id "send"]
+                       [ text "Send!" ]
+              ]
+        , viewAnswersSection model
+        ]
+  in
+      { title = "tit", body = [views] }
+
+viewAnswer : Answer -> Html msg
+viewAnswer ans =
+  tr []
+     [ td [ class "td-check"] [ input [ type_ "radio", value "cotton"] [] ]
+     , td [] [ text ans.description]
+     , td [] [ text ans.tags]
+     , td []
+          [ audio [ controls True ]
+                  [ source [ src ("http://localhost:5000/" ++ ans.audio_url) ] [] ]
+          ]
+     ]
+
+viewAnswerList : Model -> Html msg
+viewAnswerList model =
+  div [ ]
+      [ h2 [] [ text "Answers"]
+      , div []
+            [ label [ ] [ text "Search" ]
+            , input [ type_ "text", value ""] []
+            , input [ type_ "text", value ""] []
+            ]
+      , table []
+              [ thead []
+                      [ tr []
+                           [ th [ class "td-check" ] [ text "Send" ] ]
+                           , th [] [ text "Description"]
+                           , th [] [ text "Answer" ]
+                      ]
+              , tbody []
+                      (List.map viewAnswer model.answers)
+              ]
+      ]
+
+
+viewAnswersSection : Model -> Html Msg
+viewAnswersSection model =
+  div [ id "answers"]
+    [ h1 [] [ text ("Status: " ++ model.resp) ]
+    , div [ id "add-answer" ]
+           [ h3 [] [ text "Add Answer:"]
+           , div []
+                 [ label [ for "description" ] [ text "Description" ]
+                 , textarea [ cols 80, rows 4 ]  []
+                 ]
+           , div []
+                 [ label [ for "tags" ] [ text "Tags" ]
+                 , input [ type_ "text", value "" ] []
+                 ]
+           , div []
+                 [ h1 [] [ text "Answer Recorder" ]
+                 , button [ onClick StartRecording ] [ text "Record"]
+                 , button [ onClick StopRecording] [ text "Stop" ]
+                 ]
+           , div []
+                 [ h1 []  [ text "Upload file instead"]
+                 , button [ onClick WavRequested] [ text "Upload Audio" ]
+                 ]
+
+           , div []
+                 [ button [ onClick SendToServer ] [text "Upload Answer"] ]
+           ]
+    , viewAnswerList model
+    ]
+
+viewQuestion : Question -> Html msg
+viewQuestion ques =
+         tr []
+            [ td [ class "td-check"] [ input [type_ "checkbox", value "rice" ] [] ]
+            , td [ ] [ text ques.q_meta]
+            , td [ ] [ text (ques.q_id |> String.fromInt) ]
+            , td [ ] [ audio [ controls True]
+                         [ source [src ("http://localhost:5000/" ++ ques.q_audio), type_ "audio/wav" ] [] ]
+                     ]
+            ]
+
+
+viewQuestions : Model -> Html msg
+viewQuestions model =
+  div [ id "questions" ]
+      [ h2 [] [ text "Questions" ]
+      , table []
+        [ thead []
+                [ tr []
+                     [ th [ class "td-check" ]
+                          [ text "Send" ]
+                     , th [ ]
+                          [ text "Phone" ]
+                     , th []
+                          [ text "Received" ]
+                     ]
+                ]
+        , tbody []
+                (List.map viewQuestion model.questions)
+        ]
+     ]
 
 
 port startRecording : () -> Cmd msg
