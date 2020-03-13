@@ -1,6 +1,67 @@
 <html>
+	<head>
+		<title>MediaRecorder API - Sample</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="WebRTC getUserMedia MediaRecorder API">
+    <style>
+      audio{
+        vertical-align: bottom;
+      }
+      button{
+        height: 40px;
+      }
+      li{
+        margin: 10px;
+      }
+      .container{
+        margin: 0px auto;
+        display: flex;
+				flex-direction: horizontal;
+      }
+      #questions, #answers{
+        padding: 50px;
+        flex: 45%;
+        background-color: #efefef;
+      }
+      #send-col{
+        padding: 50px;
+        flex: 10%;
+      }
+      #send{
+        margin: 0 auto;
+      }
+      #add-answer{
+        border: 1px solid #000000;
+        background-color: #fdfdfd;
+        padding: 10px;
+        margin-bottom: 20px;
+      }
+      label, input[type=text]{
+        width: 150px;
+        margin-right: 10px;
+      }
+      h2{
+        margin: 0 0 10px 0;
+      }
+      h3{
+        margin: 0 0 10px 0;
+      }
+      table{
+        margin-top: 20px;
+        width: 100%;
+      }
+      td,th{
+        padding: 5px 15px;
+        height: 40px;
+      }
+      .td-check{
+        width: 20px;
+      }
+    </style>
+	</head>
   <body>
-    <main></main>
+		<div id="main"></div>
     <script src="./index.js"></script>
   </body>
 </html
