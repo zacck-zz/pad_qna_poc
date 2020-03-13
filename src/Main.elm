@@ -9,7 +9,7 @@ import Json.Decode as JD exposing(Decoder, at, int, map3, map4,string)
 import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, source, table, tbody, textarea, thead, td, th, text, tr, label)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (class, controls, cols, for, id, type_, src, rows, value)
 import Http exposing (bytesPart, multipartBody, stringPart)
 import Task
@@ -30,8 +30,14 @@ main =
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init _ url key =
   let
+      initForm =
+        { audio = Nothing
+        , desc = ""
+        , tags = ""
+        }
+
       mod =
-         {audio = Nothing
+         { form = initForm
          , resp = "Nothign Uploaded"
          , answers = []
          , questions = []
@@ -44,6 +50,7 @@ init _ url key =
           [ getAnswers
           , getQuestions
           ]
+
   in
   (mod, cmds)
 
@@ -53,13 +60,20 @@ subscriptions _ =
     [ consumeAudio UploadAnswer ]
 
 type alias Model =
-  { audio : Maybe Bytes
+  { form : Form
   , resp : String
   , answers : List Answer
   , questions : List Question
   , key : Nav.Key
   , url : Url.Url
   }
+
+type alias Form =
+  { audio : Maybe Bytes
+  , desc : String
+  , tags : String
+  }
+
 
 type Msg =
   StartRecording
@@ -74,7 +88,8 @@ type Msg =
   | LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
   | GotQuestions (Result Http.Error (List Question ))
-
+  | SetTags String
+  | SetDescription String
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -97,8 +112,14 @@ update msg model =
       let
           byted =
             Base64.toBytes ans
+
+          form =
+           model.form
+
+          updatedForm =
+            { form | audio = byted }
       in
-      ({ model | audio = byted, resp = "Recording Ready for Upload"} , Cmd.none)
+      ({ model | form = updatedForm, resp = "Recording Ready for Upload"} , Cmd.none)
 
     WavRequested ->
       (model
@@ -111,10 +132,17 @@ update msg model =
       )
 
     ByteUploadedFile bytes ->
-      ({ model | audio = Just bytes, resp = "File Ready for Upload"}, Cmd.none)
+      let
+          form =
+            model.form
+
+          updatedForm =
+            { form | audio = Just bytes }
+      in
+      ({ model | form = updatedForm, resp = "File Ready for Upload"}, Cmd.none)
 
     SendToServer ->
-      case model.audio of
+      case model.form.audio of
         Nothing ->
           (model, Cmd.none) {- Should be covered using error handling -}
 
@@ -123,8 +151,8 @@ update msg model =
               body =
                 multipartBody
                   [ bytesPart "audio" "audio/*" b
-                  , stringPart "description" "some parts"
-                  , stringPart "tags" " some tags"
+                  , stringPart "description" model.form.desc
+                  , stringPart "tags" model.form.tags
                   ]
           in
               (model
@@ -138,7 +166,9 @@ update msg model =
     GotUploadResponse res ->
       case res of
         Ok _ ->
-          ({model | resp = "uploaded"}, Cmd.none)
+          ({model | resp = "uploaded"}
+          , getAnswers
+          )
 
         Err _ ->
           ({model | resp = "We broke something"}, Cmd.none)
@@ -183,6 +213,31 @@ update msg model =
       ( { model | url = url }
       , Cmd.none
       )
+
+    SetTags tags ->
+      let
+         form =
+          model.form
+
+         updatedForm =
+           { form | tags = tags }
+
+      in
+          ({model | form = updatedForm}
+          , Cmd.none
+          )
+
+    SetDescription desc ->
+      let
+          form =
+            model.form
+
+          updatedForm =
+            { form | desc = desc }
+      in
+          ({model | form = updatedForm}
+          , Cmd.none
+          )
 
 type alias Question =
   { q_audio: String
@@ -294,11 +349,11 @@ viewAnswersSection model =
            [ h3 [] [ text "Add Answer:"]
            , div []
                  [ label [ for "description" ] [ text "Description" ]
-                 , textarea [ cols 80, rows 4 ]  []
+                 , textarea [ cols 80, rows 4, onInput SetDescription ]  []
                  ]
            , div []
                  [ label [ for "tags" ] [ text "Tags" ]
-                 , input [ type_ "text", value "" ] []
+                 , input [ type_ "text", onInput SetTags ] []
                  ]
            , div []
                  [ h1 [] [ text "Answer Recorder" ]
