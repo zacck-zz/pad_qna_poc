@@ -90,6 +90,8 @@ type Msg =
   | GotQuestions (Result Http.Error (List Question ))
   | SetTags String
   | SetDescription String
+  | SendAnswer
+  | AnswerSent (Result Http.Error ())
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -239,6 +241,26 @@ update msg model =
           , Cmd.none
           )
 
+    SendAnswer ->
+       let
+           reqBody =
+             multipartBody
+              [ stringPart "queue_owner" "master"
+              , stringPart "answer_audio" "answer"
+              , stringPart "question_ids" "ids"
+              ]
+       in
+       (model
+       ,Http.post
+          { url = "http://localhost:5000/answer"
+          , body = reqBody
+          , expect = Http.expectWhatever AnswerSent
+          }
+       )
+
+    AnswerSent _ ->
+      (model, Cmd.none)
+
 type alias Question =
   { q_audio: String
   , q_id: Int
@@ -299,7 +321,7 @@ view model =
         div [ class "container" ]
         [ viewQuestions model
         , div [ id "send-col"]
-              [ button [ id "send"]
+              [ button [ id "send", onClick SendAnswer]
                        [ text "Send!" ]
               ]
         , viewAnswersSection model
