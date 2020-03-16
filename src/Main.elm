@@ -44,6 +44,10 @@ init _ url key =
   (mod, cmds)
 
 
+type AudioResource =
+  F File
+  |R Bytes
+
 initModel : Url.Url -> Nav.Key -> Model
 initModel url key=
   { answerForm = initAnswerForm
@@ -326,7 +330,7 @@ update msg model =
           ({ model | questions = qs }, Cmd.none)
 
         Err er ->
-          ( { model | resp = er |> Debug.toString }, Cmd.none)
+          ( { model | resp = "Error while answering"}, Cmd.none)
 
 type alias Question =
   { q_audio: String
