@@ -1,6 +1,22 @@
 Answers Dashboard
 
 
+## Install deps using npm or yarn by running
+yarn install
+
+or
+
+npm install
+
+## To watch code for development run
+
+yarn watch-dev
+
+or
+
+npm run watch-dev
+
+
 ## To Build run
 docker build . -t qna_ui
 
