@@ -12,7 +12,7 @@ import File.Select as Select
 import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (class, controls, cols, for, id, name, type_, src, rows, value)
-import Http exposing (bytesPart, jsonBody, multipartBody, stringPart)
+import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
 import Task
 import Url exposing (..)
 
@@ -90,7 +90,7 @@ type alias Model =
   }
 
 type alias AnswerForm =
-  { audio : Maybe Bytes
+  { audio : Maybe AudioResource
   , desc : String
   , tags : String
   }
@@ -108,7 +108,6 @@ type Msg =
   | UploadAnswer String
   | WavRequested
   | WavLoaded File
-  | ByteUploadedFile Bytes
   | SendToServer
   | GotUploadResponse (Result Http.Error ())
   | GotAnswers (Result Http.Error (List Answer))
@@ -148,7 +147,12 @@ update msg model =
            model.answerForm
 
           updatedForm =
-            { answerForm | audio = byted }
+            case byted of
+              Just byts ->
+                { answerForm | audio = Just (R byts) }
+
+              Nothing ->
+                answerForm
       in
       ({ model | answerForm = updatedForm, resp = "Recording Ready for Upload"} , Cmd.none)
 
@@ -158,30 +162,34 @@ update msg model =
       )
 
     WavLoaded file ->
-      (model
-      , Task.perform ByteUploadedFile (File.toBytes file)
-      )
-
-    ByteUploadedFile bytes ->
       let
           answerForm =
             model.answerForm
 
           updatedForm =
-            { answerForm | audio = Just bytes }
+            { answerForm | audio = Just (F file) }
       in
-      ({ model | answerForm = updatedForm, resp = "File Ready for Upload"}, Cmd.none)
+      ({ model | answerForm = updatedForm}, Cmd.none)
+
 
     SendToServer ->
       case model.answerForm.audio of
         Nothing ->
           (model, Cmd.none) {- Should be covered using error handling -}
 
-        Just b ->
+        Just ar ->
           let
+              files =
+                case ar of
+                  F f ->
+                    filePart "audio"  f
+
+                  R r ->
+                    bytesPart "audio"  "audio/*" r
+
               body =
                 multipartBody
-                  [ bytesPart "audio" "audio/*" b
+                  [ files
                   , stringPart "description" model.answerForm.desc
                   , stringPart "tags" model.answerForm.tags
                   ]
