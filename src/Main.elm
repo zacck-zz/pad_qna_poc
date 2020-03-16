@@ -6,12 +6,13 @@ import Bytes exposing (Bytes)
 import Bytes.Decode as BDecode
 import Base64
 import Json.Decode as JD exposing(Decoder, at, int, map3, map4,string)
+import Json.Encode as Encode
 import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (class, controls, cols, for, id, type_, src, rows, value)
-import Http exposing (bytesPart, multipartBody, stringPart)
+import Html.Attributes exposing (class, controls, cols, for, id, name, type_, src, rows, value)
+import Http exposing (bytesPart, jsonBody, multipartBody, stringPart)
 import Task
 import Url exposing (..)
 
@@ -30,20 +31,8 @@ main =
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init _ url key =
   let
-      initForm =
-        { audio = Nothing
-        , desc = ""
-        , tags = ""
-        }
-
       mod =
-         { form = initForm
-         , resp = "Nothign Uploaded"
-         , answers = []
-         , questions = []
-         , key = key
-         , url = url
-         }
+        initModel url key
 
       cmds =
         Cmd.batch
@@ -54,13 +43,41 @@ init _ url key =
   in
   (mod, cmds)
 
+
+initModel : Url.Url -> Nav.Key -> Model
+initModel url key=
+  { answerForm = initAnswerForm
+  , sendForm = initSendForm
+  , resp = "Nothign Uploaded"
+  , answers = []
+  , questions = []
+  , key = key
+  , url = url
+  }
+
+initAnswerForm : AnswerForm
+initAnswerForm =
+  { audio = Nothing
+  , desc = ""
+  , tags = ""
+  }
+
+initSendForm : SendForm
+initSendForm =
+        { answer_audio = ""
+        , queue_owner = "master"
+        , question_ids = []
+        }
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
   Sub.batch
     [ consumeAudio UploadAnswer ]
 
 type alias Model =
-  { form : Form
+  { answerForm : AnswerForm
+  , sendForm : SendForm
   , resp : String
   , answers : List Answer
   , questions : List Question
@@ -68,10 +85,16 @@ type alias Model =
   , url : Url.Url
   }
 
-type alias Form =
+type alias AnswerForm =
   { audio : Maybe Bytes
   , desc : String
   , tags : String
+  }
+
+type alias SendForm =
+  { queue_owner : String
+  , answer_audio : String
+  , question_ids : List Int
   }
 
 
@@ -91,7 +114,9 @@ type Msg =
   | SetTags String
   | SetDescription String
   | SendAnswer
-  | AnswerSent (Result Http.Error ())
+  | AnswerSelected String
+  | QuestionChecked String
+  | AnswerSent (Result Http.Error (List Question))
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -115,13 +140,13 @@ update msg model =
           byted =
             Base64.toBytes ans
 
-          form =
-           model.form
+          answerForm =
+           model.answerForm
 
           updatedForm =
-            { form | audio = byted }
+            { answerForm | audio = byted }
       in
-      ({ model | form = updatedForm, resp = "Recording Ready for Upload"} , Cmd.none)
+      ({ model | answerForm = updatedForm, resp = "Recording Ready for Upload"} , Cmd.none)
 
     WavRequested ->
       (model
@@ -135,16 +160,16 @@ update msg model =
 
     ByteUploadedFile bytes ->
       let
-          form =
-            model.form
+          answerForm =
+            model.answerForm
 
           updatedForm =
-            { form | audio = Just bytes }
+            { answerForm | audio = Just bytes }
       in
-      ({ model | form = updatedForm, resp = "File Ready for Upload"}, Cmd.none)
+      ({ model | answerForm = updatedForm, resp = "File Ready for Upload"}, Cmd.none)
 
     SendToServer ->
-      case model.form.audio of
+      case model.answerForm.audio of
         Nothing ->
           (model, Cmd.none) {- Should be covered using error handling -}
 
@@ -153,8 +178,8 @@ update msg model =
               body =
                 multipartBody
                   [ bytesPart "audio" "audio/*" b
-                  , stringPart "description" model.form.desc
-                  , stringPart "tags" model.form.tags
+                  , stringPart "description" model.answerForm.desc
+                  , stringPart "tags" model.answerForm.tags
                   ]
           in
               (model
@@ -168,7 +193,7 @@ update msg model =
     GotUploadResponse res ->
       case res of
         Ok _ ->
-          ({model | resp = "uploaded"}
+          ( { model | resp = "uploaded", answerForm = initAnswerForm}
           , getAnswers
           )
 
@@ -212,48 +237,96 @@ update msg model =
 
     SetTags tags ->
       let
-         form =
-          model.form
+         answerForm =
+          model.answerForm
 
          updatedForm =
-           { form | tags = tags }
+           { answerForm | tags = tags }
 
       in
-          ({model | form = updatedForm}
+          ({model | answerForm = updatedForm}
           , Cmd.none
           )
 
     SetDescription desc ->
       let
-          form =
-            model.form
+          answerForm =
+            model.answerForm
 
           updatedForm =
-            { form | desc = desc }
+            { answerForm | desc = desc }
       in
-          ({model | form = updatedForm}
+          ({model | answerForm = updatedForm}
           , Cmd.none
           )
 
     SendAnswer ->
        let
-           reqBody =
-             multipartBody
-              [ stringPart "queue_owner" "master"
-              , stringPart "answer_audio" "answer"
-              , stringPart "question_ids" "ids"
-              ]
-       in
-       (model
-       ,Http.post
-          { url = "http://localhost:5000/answer"
-          , body = reqBody
-          , expect = Http.expectWhatever AnswerSent
-          }
-       )
+           encodedList =
+             model.sendForm.question_ids
+             |> Encode.list Encode.int
 
-    AnswerSent _ ->
-      (model, Cmd.none)
+           reqBody =
+             Encode.object
+                [ ("queue_owner", Encode.string model.sendForm.queue_owner)
+                , ("answer_audio", Encode.string model.sendForm.answer_audio)
+                , ("question_ids", encodedList)
+                ]
+             |> jsonBody
+
+           sendAnswer : Cmd Msg
+           sendAnswer =
+             Http.post
+              { url = "http://localhost:5000/answer"
+              , body = reqBody
+              , expect = Http.expectJson AnswerSent questionsDecoder
+              }
+
+       in
+       (model, sendAnswer)
+
+    AnswerSelected ans ->
+      let
+          sendForm =
+            model.sendForm
+
+          updatedSendForm =
+            { sendForm | answer_audio = ans }
+      in
+          ({ model | sendForm = updatedSendForm }, Cmd.none)
+
+    QuestionChecked stringId ->
+      let
+          sendForm =
+            model.sendForm
+
+          q_ids =
+            sendForm.question_ids
+
+          maybeId =
+            stringId
+            |>String.toInt
+
+          updatedSendForm =
+            case maybeId of
+              Just id ->
+                if List.member id q_ids then
+                  { sendForm | question_ids = q_ids |> List.filter (\x -> x /= id) }
+                else
+                  { sendForm | question_ids = (id :: q_ids) }
+
+              Nothing ->
+                sendForm
+      in
+          ({ model | sendForm = updatedSendForm} , Cmd.none)
+
+    AnswerSent res ->
+      case res of
+        Ok qs ->
+          ({ model | questions = qs }, Cmd.none)
+
+        Err er ->
+          ( { model | resp = er |> Debug.toString }, Cmd.none)
 
 type alias Question =
   { q_audio: String
@@ -321,12 +394,13 @@ view model =
         , viewAnswersSection model
         ]
   in
-      { title = "tit", body = [views] }
+      { title = "Answers ~ Dashboard", body = [views] }
 
-viewAnswer : Answer -> Html msg
+viewAnswer : Answer -> Html Msg
 viewAnswer ans =
   tr []
-     [ td [ class "td-check"] [ input [ type_ "radio", value "cotton"] [] ]
+     [ td [ class "td-check"]
+          [ input [ type_ "radio", value ans.audio_url, name "answer_audio", onInput AnswerSelected] [] ]
      , td [] [ text ans.description]
      , td [] [ text ans.tags]
      , td []
@@ -335,7 +409,7 @@ viewAnswer ans =
           ]
      ]
 
-viewAnswerList : Model -> Html msg
+viewAnswerList : Model -> Html Msg
 viewAnswerList model =
   div [ ]
       [ h2 [] [ text "Answers"]
@@ -387,19 +461,24 @@ viewAnswersSection model =
     , viewAnswerList model
     ]
 
-viewQuestion : Question -> Html msg
+viewQuestion : Question -> Html Msg
 viewQuestion ques =
+  let
+      stringId =
+        ques.q_id
+        |> String.fromInt
+  in
          tr []
-            [ td [ class "td-check"] [ input [type_ "checkbox", value "rice" ] [] ]
+            [ td [ class "td-check"] [ input [type_ "checkbox", value stringId, onInput QuestionChecked ] [] ]
             , td [ ] [ text ques.q_meta]
-            , td [ ] [ text (ques.q_id |> String.fromInt) ]
+            , td [ ] [ text stringId ]
             , td [ ] [ audio [ controls True]
                          [ source [src ("http://localhost:5000/" ++ ques.q_audio), type_ "audio/wav" ] [] ]
                      ]
             ]
 
 
-viewQuestions : Model -> Html msg
+viewQuestions : Model -> Html Msg
 viewQuestions model =
   div [ id "questions" ]
       [ h2 [] [ text "Questions" ]
