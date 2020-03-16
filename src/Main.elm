@@ -206,7 +206,10 @@ update msg model =
       case res of
         Ok _ ->
           ( { model | resp = "uploaded", answerForm = initAnswerForm}
-          , getAnswers
+          , Cmd.batch
+              [ getAnswers
+              , Nav.reload
+              ]
           )
 
         Err _ ->
@@ -335,7 +338,9 @@ update msg model =
     AnswerSent res ->
       case res of
         Ok qs ->
-          ({ model | questions = qs }, Cmd.none)
+          ( { model | questions = qs }
+          , Nav.reload
+          )
 
         Err er ->
           ( { model | resp = "Error while answering"}, Cmd.none)
