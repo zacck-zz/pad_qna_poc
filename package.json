@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "watch-dev": "parcel src/index.html",
+    "build-prod": "parcel build src/index.html"
+  },
   "devDependencies": {
     "elm-hot": "^1.1.4",
     "node-elm-compiler": "^5.0.4"
@@ -6,6 +10,7 @@
   "dependencies": {
     "elm-format": "^0.8.3",
     "express": "^4.17.1",
-    "express-static-gzip": "^2.0.6"
+    "express-static-gzip": "^2.0.6",
+    "parcel": "^1.12.4"
   }
 }
