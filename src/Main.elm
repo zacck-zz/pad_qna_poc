@@ -15,7 +15,7 @@ import Html.Attributes exposing (class, controls, cols, for, id, name, type_, sr
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
 import Task
 import Url exposing (..)
-
+import Url.Builder as UrlBuilder
 
 main : Program () Model Msg
 main =
@@ -52,6 +52,11 @@ initModel : Url.Url -> Nav.Key -> Model
 initModel url key=
   { answerForm = initAnswerForm
   , sendForm = initSendForm
+<<<<<<< HEAD
+=======
+  , searchForm = initSearchForm
+  , resp = "Nothign Uploaded"
+>>>>>>> 372c9f9... Build and activate the answer search form
   , answers = []
   , questions = []
   , key = key
@@ -74,6 +79,11 @@ initSendForm =
         , question_ids = []
         }
 
+initSearchForm : SearchForm
+initSearchForm =
+        { tags = ""
+        , description = ""
+        }
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -83,6 +93,11 @@ subscriptions _ =
 type alias Model =
   { answerForm : AnswerForm
   , sendForm : SendForm
+<<<<<<< HEAD
+=======
+  , searchForm : SearchForm
+  , resp : String
+>>>>>>> 372c9f9... Build and activate the answer search form
   , answers : List Answer
   , questions : List Question
   , key : Nav.Key
@@ -110,6 +125,10 @@ type alias SendForm =
   , question_ids : List Int
   }
 
+type alias SearchForm =
+  { tags : String
+  , description : String
+  }
 
 type Msg =
   StartRecording
@@ -129,8 +148,15 @@ type Msg =
   | AnswerSelected String
   | QuestionChecked String
   | AnswerSent (Result Http.Error (List Question))
+<<<<<<< HEAD
   | SetAudioUrl String
   | ClearAudio
+=======
+  | FilterAnswers
+  | SetSearchDesc String
+  | SetSearchTags String
+
+>>>>>>> 372c9f9... Build and activate the answer search form
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -253,7 +279,7 @@ update msg model =
     GotAnswers res ->
       case res of
         Ok a ->
-          ({ model | answers = a}, Cmd.none)
+          ({ model | answers = a, searchForm = initSearchForm }, Cmd.none)
 
         Err e ->
           ( model
@@ -405,6 +431,54 @@ update msg model =
           , Cmd.none
           )
 
+
+    FilterAnswers ->
+      let
+         tags =
+           model.searchForm.tags
+
+         description =
+           model.searchForm.description
+
+         queryParams =
+           UrlBuilder.absolute ["list"]
+                    [ UrlBuilder.string "tags" tags, UrlBuilder.string "description" description]
+
+         queryUrl = "http://localhost:5000" ++ queryParams
+      in
+          ( model
+          , Http.get
+              { url = queryUrl
+              , expect = Http.expectJson GotAnswers answersDecoder
+              }
+          )
+
+    SetSearchTags tags ->
+      let
+          searchForm =
+            model.searchForm
+
+          updatedSearchForm =
+            { searchForm | tags = tags }
+      in
+          ( { model | searchForm = updatedSearchForm }
+          , Cmd.none
+          )
+
+
+    SetSearchDesc desc ->
+        let
+            searchForm =
+              model.searchForm
+
+            updatedSearchForm =
+              { searchForm | description = desc }
+
+        in
+            ( { model | searchForm = updatedSearchForm }
+            , Cmd.none
+            )
+
 type alias Question =
   { q_audio: String
   , q_id: Int
@@ -488,12 +562,26 @@ viewAnswer ans =
 
 viewAnswerList : Model -> Html Msg
 viewAnswerList model =
+  let
+     tags =
+      model.searchForm.tags
+
+     desc =
+      model.searchForm.description
+  in
   div [ ]
       [ h2 [] [ text "Answers"]
       , div []
             [ label [ ] [ text "Search" ]
-            , input [ type_ "text", value ""] []
-            , input [ type_ "text", value ""] []
+            , div []
+                  [ label [] [ text "tags" ]
+                  , input [ type_ "text", value tags, onInput SetSearchTags] []
+                  ]
+            , div []
+                  [ label [] [ text "description" ]
+                  , input [ type_ "text", value desc, onInput SetSearchDesc] []
+                  ]
+            , button [ onClick FilterAnswers] [ text "Search" ]
             ]
       , table []
               [ thead []
