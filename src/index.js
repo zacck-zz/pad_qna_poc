@@ -47,7 +47,7 @@ function handleBlob(event) {
 	reader.onload = function() {
 		console.log("recorded result read as binary ");
 		var dataUrl = reader.result;
-    var base64 = dataUrl.split(',')[1];
+		var base64 = dataUrl.split(',')[1];
 		console.log(base64);
 		app.ports.consumeAudio.send(base64);
 	}

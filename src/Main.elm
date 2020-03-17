@@ -9,7 +9,7 @@ import Json.Decode as JD exposing(Decoder, at, int, map3, map4,string)
 import Json.Encode as Encode
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, source, table, tbody, textarea, thead, td, th, text, tr, label)
+import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, p, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (class, controls, cols, for, id, name, type_, src, rows, value)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
@@ -64,6 +64,7 @@ initAnswerForm =
   { audio = Nothing
   , desc = ""
   , tags = ""
+  , audio_url = Nothing
   }
 
 initSendForm : SendForm
@@ -93,6 +94,7 @@ type alias AnswerForm =
   { audio : Maybe AudioResource
   , desc : String
   , tags : String
+  , audio_url : Maybe String
   }
 
 type alias SendForm =
@@ -120,7 +122,8 @@ type Msg =
   | AnswerSelected String
   | QuestionChecked String
   | AnswerSent (Result Http.Error (List Question))
-
+  | SetAudioUrl String
+  | ClearAudio
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -143,13 +146,17 @@ update msg model =
           byted =
             Base64.toBytes ans
 
+          audio_url =
+            ("data:audio/ogg; codecs=opus;base64," ++ ans)
+            |> Just
+
           answerForm =
            model.answerForm
 
           updatedForm =
             case byted of
               Just byts ->
-                { answerForm | audio = Just (R byts) }
+                { answerForm | audio = Just (R byts) , audio_url = audio_url}
 
               Nothing ->
                 answerForm
@@ -169,7 +176,9 @@ update msg model =
           updatedForm =
             { answerForm | audio = Just (F file) }
       in
-      ({ model | answerForm = updatedForm}, Cmd.none)
+      ( { model | answerForm = updatedForm}
+      , Task.perform SetAudioUrl (File.toUrl file)
+      )
 
 
     SendToServer ->
@@ -343,7 +352,32 @@ update msg model =
           )
 
         Err er ->
-          ( { model | resp = "Error while answering"}, Cmd.none)
+           ( { model | resp = "Error while answering"}, Cmd.none)
+
+    SetAudioUrl url ->
+      let
+          answerForm =
+            model.answerForm
+
+          updatedAnswerForm =
+            { answerForm | audio_url = Just url }
+      in
+          ( { model | answerForm = updatedAnswerForm}
+          , Cmd.none
+          )
+
+    ClearAudio ->
+      let
+          answerForm =
+            model.answerForm
+
+          updatedAnswerForm =
+            { answerForm | audio = Nothing, audio_url = Nothing }
+
+      in
+          ( { model | resp = "Nothing Uploaded", answerForm = updatedAnswerForm }
+          , Cmd.none
+          )
 
 type alias Question =
   { q_audio: String
@@ -462,21 +496,45 @@ viewAnswersSection model =
                  [ label [ for "tags" ] [ text "Tags" ]
                  , input [ type_ "text", onInput SetTags ] []
                  ]
+           , viewRecordingForm model
            , div []
-                 [ h1 [] [ text "Answer Recorder" ]
-                 , button [ onClick StartRecording ] [ text "Record"]
-                 , button [ onClick StopRecording] [ text "Stop" ]
-                 ]
-           , div []
-                 [ h1 []  [ text "Upload file instead"]
-                 , button [ onClick WavRequested] [ text "Upload Audio" ]
-                 ]
-
-           , div []
-                 [ button [ onClick SendToServer ] [text "Upload Answer"] ]
+                 [ button [ onClick SendToServer ] [ text "Upload Answer" ] ]
            ]
     , viewAnswerList model
     ]
+
+viewRecordingForm : Model -> Html Msg
+viewRecordingForm model =
+  div [ id "answers"]
+      [ p [] [ text "No Data" ]
+      , div [ class "file-form"]
+            [ button [ onClick StartRecording ] [ text "Record"]
+            , button [ onClick WavRequested ] [ text "Upload"]
+            ]
+      , div [ class "recording-status" ]
+            [ p [] [text "red circle while recording"]
+            , button [ onClick StopRecording] [ text "Stop" ]
+            ]
+      , case model.answerForm.audio_url of
+          Nothing ->
+            text ""
+
+          Just ar ->
+            ar
+            |>  viewSuppliedAudio
+      ]
+
+viewSuppliedAudio : String -> Html Msg
+viewSuppliedAudio audioresource =
+      div []
+          [ p [] [ text "Audio Supplied" ]
+          , audio [ controls True ]
+                  [ source [ src audioresource ] [] ]
+          , button [ onClick ClearAudio ] [ text "Remove" ]
+          ]
+
+
+
 
 viewQuestion : Question -> Html Msg
 viewQuestion ques =
