@@ -52,7 +52,6 @@ initModel : Url.Url -> Nav.Key -> Model
 initModel url key=
   { answerForm = initAnswerForm
   , sendForm = initSendForm
-  , resp = "Nothign Uploaded"
   , answers = []
   , questions = []
   , key = key
@@ -61,7 +60,8 @@ initModel url key=
 
 initAnswerForm : AnswerForm
 initAnswerForm =
-  { audio = Nothing
+  { status = NoData
+  , audio = Nothing
   , desc = ""
   , tags = ""
   , audio_url = Nothing
@@ -83,15 +83,23 @@ subscriptions _ =
 type alias Model =
   { answerForm : AnswerForm
   , sendForm : SendForm
-  , resp : String
   , answers : List Answer
   , questions : List Question
   , key : Nav.Key
   , url : Url.Url
   }
 
+type  AnswerFormStatus =
+  NoData
+  | Recording
+  | Recorded
+  | Selecting
+  | Selected
+  | Discarded
+
 type alias AnswerForm =
-  { audio : Maybe AudioResource
+  { status : AnswerFormStatus
+  , audio : Maybe AudioResource
   , desc : String
   , tags : String
   , audio_url : Maybe String
@@ -131,15 +139,27 @@ update msg model =
       let
           start =
             startRecording ()
+
+          answerForm =
+            model.answerForm
+
+          updatedAnswerForm =
+            { answerForm | status = Recording }
       in
-      ({ model | resp = "Recording..."}, start)
+      ({ model | answerForm = updatedAnswerForm }, start)
 
     StopRecording ->
       let
           stop =
             stopRecording ()
+
+          answerForm =
+            model.answerForm
+
+          updatedAnswerForm =
+            { answerForm | status = Recorded }
       in
-      ({ model | resp = "Recording Done ..."}, stop)
+      ({ model | answerForm = updatedAnswerForm}, stop)
 
     UploadAnswer ans ->
       let
@@ -161,10 +181,17 @@ update msg model =
               Nothing ->
                 answerForm
       in
-      ({ model | answerForm = updatedForm, resp = "Recording Ready for Upload"} , Cmd.none)
+      ({ model | answerForm = updatedForm} , Cmd.none)
 
     WavRequested ->
-      (model
+      let
+          answerForm =
+            model.answerForm
+
+          updatedAnswerForm =
+            { answerForm | status = Selecting }
+      in
+      ( { model | answerForm = updatedAnswerForm }
       , Select.file ["audio/wav"] WavLoaded
       )
 
@@ -174,7 +201,7 @@ update msg model =
             model.answerForm
 
           updatedForm =
-            { answerForm | audio = Just (F file) }
+            { answerForm | audio = Just (F file), status = Selected }
       in
       ( { model | answerForm = updatedForm}
       , Task.perform SetAudioUrl (File.toUrl file)
@@ -214,7 +241,7 @@ update msg model =
     GotUploadResponse res ->
       case res of
         Ok _ ->
-          ( { model | resp = "uploaded", answerForm = initAnswerForm}
+          ( { model | answerForm = initAnswerForm}
           , Cmd.batch
               [ getAnswers
               , Nav.reload
@@ -222,7 +249,7 @@ update msg model =
           )
 
         Err _ ->
-          ({model | resp = "We broke something"}, Cmd.none)
+          (model, Cmd.none)
 
     GotAnswers res ->
       case res of
@@ -230,7 +257,7 @@ update msg model =
           ({ model | answers = a}, Cmd.none)
 
         Err e ->
-          ( {model | resp = "Problem when fetching answers"}
+          ( model
           , Cmd.none
           )
 
@@ -242,7 +269,7 @@ update msg model =
           )
 
         Err err ->
-          ({ model | resp = "Problem when fetching questions" }
+          ( model
           , Cmd.none
           )
 
@@ -352,7 +379,7 @@ update msg model =
           )
 
         Err er ->
-           ( { model | resp = "Error while answering"}, Cmd.none)
+           ( model, Cmd.none)
 
     SetAudioUrl url ->
       let
@@ -372,10 +399,10 @@ update msg model =
             model.answerForm
 
           updatedAnswerForm =
-            { answerForm | audio = Nothing, audio_url = Nothing }
+            { answerForm | status = Discarded, audio = Nothing, audio_url = Nothing }
 
       in
-          ( { model | resp = "Nothing Uploaded", answerForm = updatedAnswerForm }
+          ( { model | answerForm = updatedAnswerForm }
           , Cmd.none
           )
 
@@ -485,8 +512,7 @@ viewAnswerList model =
 viewAnswersSection : Model -> Html Msg
 viewAnswersSection model =
   div [ id "answers"]
-    [ h1 [] [ text ("Status: " ++ model.resp) ]
-    , div [ id "add-answer" ]
+    [ div [ id "add-answer" ]
            [ h3 [] [ text "Add Answer:"]
            , div []
                  [ label [ for "description" ] [ text "Description" ]
@@ -504,18 +530,26 @@ viewAnswersSection model =
     ]
 
 viewRecordingForm : Model -> Html Msg
-viewRecordingForm model =
+viewRecordingForm { answerForm } =
   div [ id "answers"]
       [ p [] [ text "No Data" ]
       , div [ class "file-form"]
             [ button [ onClick StartRecording ] [ text "Record"]
             , button [ onClick WavRequested ] [ text "Upload"]
             ]
-      , div [ class "recording-status" ]
+      , case answerForm.status of
+        NoData ->
+          text ""
+
+        Recording ->
+          div [ class "recording-status" ]
             [ p [] [text "red circle while recording"]
             , button [ onClick StopRecording] [ text "Stop" ]
             ]
-      , case model.answerForm.audio_url of
+        _ ->
+           text ""
+
+      , case answerForm.audio_url of
           Nothing ->
             text ""
 
