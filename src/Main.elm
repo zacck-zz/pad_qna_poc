@@ -571,7 +571,7 @@ viewAnswerList model =
   in
   div [ ]
       [ h2 [] [ text "Answers"]
-      , div []
+      , div [ class "search-form"]
             [ label [ ] [ text "Search" ]
             , div []
                   [ label [] [ text "tags" ]
@@ -586,9 +586,10 @@ viewAnswerList model =
       , table []
               [ thead []
                       [ tr []
-                           [ th [ class "td-check" ] [ text "Send" ] ]
+                           [ th [] [ text "Send" ]
                            , th [] [ text "Description"]
                            , th [] [ text "Answer" ]
+                           ]
                       ]
               , tbody []
                       (List.map viewAnswer model.answers)
