@@ -279,7 +279,7 @@ update msg model =
     GotAnswers res ->
       case res of
         Ok a ->
-          ({ model | answers = a, searchForm = initSearchForm }, Cmd.none)
+          ({ model | answers = a}, Cmd.none)
 
         Err e ->
           ( model
