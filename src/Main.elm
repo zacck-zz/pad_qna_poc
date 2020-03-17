@@ -15,7 +15,7 @@ import Html.Attributes exposing (class, controls, cols, for, id, name, type_, sr
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
 import Task
 import Url exposing (..)
-
+import Url.Builder as UrlBuilder
 
 main : Program () Model Msg
 main =
@@ -52,6 +52,7 @@ initModel : Url.Url -> Nav.Key -> Model
 initModel url key=
   { answerForm = initAnswerForm
   , sendForm = initSendForm
+  , searchForm = initSearchForm
   , resp = "Nothign Uploaded"
   , answers = []
   , questions = []
@@ -73,6 +74,11 @@ initSendForm =
         , question_ids = []
         }
 
+initSearchForm : SearchForm
+initSearchForm =
+        { tags = ""
+        , description = ""
+        }
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -82,6 +88,7 @@ subscriptions _ =
 type alias Model =
   { answerForm : AnswerForm
   , sendForm : SendForm
+  , searchForm : SearchForm
   , resp : String
   , answers : List Answer
   , questions : List Question
@@ -101,6 +108,10 @@ type alias SendForm =
   , question_ids : List Int
   }
 
+type alias SearchForm =
+  { tags : String
+  , description : String
+  }
 
 type Msg =
   StartRecording
@@ -120,6 +131,9 @@ type Msg =
   | AnswerSelected String
   | QuestionChecked String
   | AnswerSent (Result Http.Error (List Question))
+  | FilterAnswers
+  | SetSearchDesc String
+  | SetSearchTags String
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -218,7 +232,7 @@ update msg model =
     GotAnswers res ->
       case res of
         Ok a ->
-          ({ model | answers = a}, Cmd.none)
+          ({ model | answers = a, searchForm = initSearchForm }, Cmd.none)
 
         Err e ->
           ( {model | resp = "Problem when fetching answers"}
@@ -345,6 +359,54 @@ update msg model =
         Err er ->
           ( { model | resp = "Error while answering"}, Cmd.none)
 
+
+    FilterAnswers ->
+      let
+         tags =
+           model.searchForm.tags
+
+         description =
+           model.searchForm.description
+
+         queryParams =
+           UrlBuilder.absolute ["list"]
+                    [ UrlBuilder.string "tags" tags, UrlBuilder.string "description" description]
+
+         queryUrl = "http://localhost:5000" ++ queryParams
+      in
+          ( model
+          , Http.get
+              { url = queryUrl
+              , expect = Http.expectJson GotAnswers answersDecoder
+              }
+          )
+
+    SetSearchTags tags ->
+      let
+          searchForm =
+            model.searchForm
+
+          updatedSearchForm =
+            { searchForm | tags = tags }
+      in
+          ( { model | searchForm = updatedSearchForm }
+          , Cmd.none
+          )
+
+
+    SetSearchDesc desc ->
+        let
+            searchForm =
+              model.searchForm
+
+            updatedSearchForm =
+              { searchForm | description = desc }
+
+        in
+            ( { model | searchForm = updatedSearchForm }
+            , Cmd.none
+            )
+
 type alias Question =
   { q_audio: String
   , q_id: Int
@@ -428,12 +490,26 @@ viewAnswer ans =
 
 viewAnswerList : Model -> Html Msg
 viewAnswerList model =
+  let
+     tags =
+      model.searchForm.tags
+
+     desc =
+      model.searchForm.description
+  in
   div [ ]
       [ h2 [] [ text "Answers"]
       , div []
             [ label [ ] [ text "Search" ]
-            , input [ type_ "text", value ""] []
-            , input [ type_ "text", value ""] []
+            , div []
+                  [ label [] [ text "tags" ]
+                  , input [ type_ "text", value tags, onInput SetSearchTags] []
+                  ]
+            , div []
+                  [ label [] [ text "description" ]
+                  , input [ type_ "text", value desc, onInput SetSearchDesc] []
+                  ]
+            , button [ onClick FilterAnswers] [ text "Search" ]
             ]
       , table []
               [ thead []
