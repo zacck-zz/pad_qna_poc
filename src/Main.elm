@@ -11,7 +11,7 @@ import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, p, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick, onInput)
-import Html.Attributes exposing (class, controls, cols, for, id, name, type_, src, rows, value)
+import Html.Attributes exposing (checked, class, controls, cols, for, id, name, type_, src, rows, value)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
 import Task
 import Url exposing (..)
@@ -52,11 +52,7 @@ initModel : Url.Url -> Nav.Key -> Model
 initModel url key=
   { answerForm = initAnswerForm
   , sendForm = initSendForm
-<<<<<<< HEAD
-=======
   , searchForm = initSearchForm
-  , resp = "Nothign Uploaded"
->>>>>>> 372c9f9... Build and activate the answer search form
   , answers = []
   , questions = []
   , key = key
@@ -93,11 +89,7 @@ subscriptions _ =
 type alias Model =
   { answerForm : AnswerForm
   , sendForm : SendForm
-<<<<<<< HEAD
-=======
   , searchForm : SearchForm
-  , resp : String
->>>>>>> 372c9f9... Build and activate the answer search form
   , answers : List Answer
   , questions : List Question
   , key : Nav.Key
@@ -148,15 +140,12 @@ type Msg =
   | AnswerSelected String
   | QuestionChecked String
   | AnswerSent (Result Http.Error (List Question))
-<<<<<<< HEAD
   | SetAudioUrl String
   | ClearAudio
-=======
   | FilterAnswers
   | SetSearchDesc String
   | SetSearchTags String
 
->>>>>>> 372c9f9... Build and activate the answer search form
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -266,11 +255,8 @@ update msg model =
     GotUploadResponse res ->
       case res of
         Ok _ ->
-          ( { model | answerForm = initAnswerForm}
-          , Cmd.batch
-              [ getAnswers
-              , Nav.reload
-              ]
+          ( { model | resp = "uploaded", answerForm = initAnswerForm}
+          , getAnswers
           )
 
         Err _ ->
@@ -399,8 +385,8 @@ update msg model =
     AnswerSent res ->
       case res of
         Ok qs ->
-          ( { model | questions = qs }
-          , Nav.reload
+          ( { model | questions = qs, sendForm = initSendForm }
+          , Cmd.none
           )
 
         Err er ->
@@ -699,15 +685,26 @@ viewSuppliedAudio audioresource =
 
 
 
-viewQuestion : Question -> Html Msg
-viewQuestion ques =
-  let
+viewQuestion : List Int -> Question -> Html Msg
+viewQuestion ids ques =
       stringId =
         ques.q_id
         |> String.fromInt
+
+      isChecked =
+        ids
+        |> List.member ques.q_id
+
+
   in
          tr []
-            [ td [ class "td-check"] [ input [type_ "checkbox", value stringId, onInput QuestionChecked ] [] ]
+            [ td [ class "td-check"]
+                 [ input [type_ "checkbox", value stringId, onInput QuestionChecked
+                 , if isChecked then
+                    checked True
+                   else
+                     checked False
+                   ] [] ]
             , td [ ] [ text ques.q_meta]
             , td [ ] [ text stringId ]
             , td [ ] [ audio [ controls True]
@@ -717,7 +714,7 @@ viewQuestion ques =
 
 
 viewQuestions : Model -> Html Msg
-viewQuestions model =
+viewQuestions { sendForm, questions } =
   div [ id "questions" ]
       [ h2 [] [ text "Questions" ]
       , table []
@@ -732,7 +729,7 @@ viewQuestions model =
                      ]
                 ]
         , tbody []
-                (List.map viewQuestion model.questions)
+                (List.map (\q -> viewQuestion sendForm.question_ids q) questions)
         ]
      ]
 
