@@ -95,7 +95,6 @@ type  AnswerFormStatus =
   | Recorded
   | Selecting
   | Selected
-  | Discarded
 
 type alias AnswerForm =
   { status : AnswerFormStatus
@@ -399,7 +398,7 @@ update msg model =
             model.answerForm
 
           updatedAnswerForm =
-            { answerForm | status = Discarded, audio = Nothing, audio_url = Nothing }
+            { answerForm | status = NoData, audio = Nothing, audio_url = Nothing }
 
       in
           ( { model | answerForm = updatedAnswerForm }
@@ -531,24 +530,65 @@ viewAnswersSection model =
 
 viewRecordingForm : Model -> Html Msg
 viewRecordingForm { answerForm } =
-  div [ id "answers"]
-      [ p [] [ text "No Data" ]
+  let
+      status =
+        answerForm.status
+
+      viewRecordingSection =
+        case status of
+          NoData ->
+            text ""
+
+          Recording ->
+            div [ class "recording-status" ]
+              [ p [] [text "red circle while recording"]
+              , button [ onClick StopRecording] [ text "Stop" ]
+              ]
+          _ ->
+            text ""
+
+      uploadButton =
+        case status of
+         NoData ->
+           button [ onClick WavRequested ] [ text "Upload" ]
+
+         _ ->
+            text ""
+
+
+      recordButton =
+        case status of
+          NoData ->
+            button [ onClick StartRecording ] [ text "Record" ]
+
+          _ ->
+            text ""
+
+      statusText =
+        case status of
+          NoData ->
+            "No Audio Supplied"
+
+          Recording ->
+            "Recording Audio"
+
+          Selecting ->
+            "Selecting Audio"
+
+          Selected ->
+            "Audio Selected"
+
+          Recorded ->
+            "Audio Recorded"
+
+  in
+      div [ id "answers"]
+      [ p [] [ text statusText  ]
       , div [ class "file-form"]
-            [ button [ onClick StartRecording ] [ text "Record"]
-            , button [ onClick WavRequested ] [ text "Upload"]
+            [ recordButton
+            , uploadButton
             ]
-      , case answerForm.status of
-        NoData ->
-          text ""
-
-        Recording ->
-          div [ class "recording-status" ]
-            [ p [] [text "red circle while recording"]
-            , button [ onClick StopRecording] [ text "Stop" ]
-            ]
-        _ ->
-           text ""
-
+      , viewRecordingSection
       , case answerForm.audio_url of
           Nothing ->
             text ""
