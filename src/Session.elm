@@ -42,6 +42,7 @@ decode key value =
             Decode.decodeValue Decode.string value
                 |> Result.andThen (Decode.decodeString Agronomist.decode)
                 |> Result.toMaybe
+
     in
     case decoded_session of
         Just agronomist ->
@@ -80,7 +81,7 @@ logout =
     storeSession Nothing
 
 
-login : { token : String, user : Profile } -> Cmd msg
+login : { token : String, user : { phone : String } } -> Cmd msg
 login { token, user } =
     let
         session_value =
@@ -88,7 +89,7 @@ login { token, user } =
                 [ ( "token", Cred.encodeToken token )
                 , ( "profile"
                   , Encode.object
-                        [ ( "phone", Encode.string (phoneToString user.phone) ) ]
+                        [ ( "phone", Encode.string (user.phone) ) ]
                   )
                 ]
 
