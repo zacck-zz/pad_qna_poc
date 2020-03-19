@@ -5,15 +5,18 @@ import Browser.Navigation as Nav
 import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, p, source, table, tbody, textarea, thead, td, th, text, tr, label)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (checked, class, controls, cols, for, id, name, type_, src, rows, value)
+import Json.Encode exposing (Value)
 import Page exposing (Page, view)
+import Page.Blank as Blank
 import Page.Landing as Landing
 import Page.AnswerDashboard as AnswerDashboard
+import Page.NotFound as NotFound
 import Route exposing (Route, urlToRoute)
 import Session exposing (Session)
 import Url exposing (..)
 
 
-main : Program () Model Msg
+main : Program Value Model Msg
 main =
   Browser.application
     { init = init
@@ -24,14 +27,14 @@ main =
     , onUrlRequest = LinkClicked
     }
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
+init : Value -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
   let
       decoded_session =
         flags
         |> Session.decode key
   in
-      changeRouteTo ( Route.urlToRoute url)
+      changeRouteTo (Just (Route.urlToRoute url))
         (Redirect decoded_session)
 
 
@@ -79,8 +82,24 @@ update msg model =
             ( model, Nav.load href )
 
     (UrlChanged url, _) ->
-      changeRouteTo (Route.urlToRoute url) model
+      let
+          maybeRoute =
+            url
+            |> Route.urlToRoute
+            |> Just
+      in
+          changeRouteTo maybeRoute model
 
+    (GotLandingMsg subMsg, Landing landing) ->
+      Landing.update subMsg landing
+        |> updateWith Landing GotLandingMsg model
+
+    (GotAnswerMsg subMsg, AnswerDashboard answerDashboard) ->
+        AnswerDashboard.update subMsg answerDashboard
+          |> updateWith AnswerDashboard GotAnswerMsg model
+
+    (_, _) ->
+      (model, Cmd.none)
 
 
 
@@ -97,6 +116,12 @@ view model =
           }
   in
       case model of
+        NotFound _ ->
+          viewPage Page.Other (\_ -> Ignored) Blank.view
+
+        Redirect _  ->
+          viewPage Page.Other (\_ -> Ignored) NotFound.view
+
         Landing landingModel ->
          viewPage Page.Landing GotLandingMsg (Landing.view landingModel)
 
@@ -118,7 +143,7 @@ changeRouteTo maybeRoute model =
             |> updateWith Landing GotLandingMsg model
 
         Just (Route.AnswerDashboard phone) ->
-          AnswerDashboard.init phone session
+          AnswerDashboard.init session
             |> updateWith AnswerDashboard GotAnswerMsg model
 
 updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> (subModel, Cmd subMsg) -> ( Model, Cmd Msg)
@@ -138,7 +163,7 @@ toSession page =
       session
 
     Landing session ->
-      session
+      Landing.toSession session
 
     AnswerDashboard session ->
-      session
+      AnswerDashboard.toSession session
