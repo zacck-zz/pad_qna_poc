@@ -1,4 +1,4 @@
-port module Page.AnswerDashboard exposing (Model, Msg, init, toSession, update, view)
+port module Page.AnswerDashboard exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
 import Base64
 import Bytes exposing (Bytes)
@@ -61,7 +61,13 @@ init session =
       mod =
         initModel session
   in
-      (mod, Cmd.none)
+      ( mod,
+        Cmd.batch
+          [ getAnswers
+          , getQuestions session
+          ]
+
+       )
 
 
 initModel : Session -> Model
@@ -687,10 +693,19 @@ questionsDecoder : Decoder (List Question)
 questionsDecoder =
   JD.list questionDecoder
 
-getQuestions : Cmd Msg
-getQuestions =
+getQuestions : Session -> Cmd Msg
+getQuestions sesh =
+  let
+      phone =
+        sesh
+        |> Session.phoneString
+
+      link =
+        UrlBuilder.crossOrigin "http://localhost:5000/list-questions" [ phone ] []
+
+  in
   Http.get
-    { url = "http://localhost:5000/list-questions/master"
+    { url = link
     , expect = Http.expectJson GotQuestions questionsDecoder
     }
 
