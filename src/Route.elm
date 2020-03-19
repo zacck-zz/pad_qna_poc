@@ -30,13 +30,8 @@ toPath route =
           Landing ->
             [""]
 
-          AnswerDashboard phone ->
-            let
-                params =
-                  phone
-                  |> Maybe.withDefault ""
-            in
-            ["answer-dashboard", params ]
+          AnswerDashboard _ ->
+            ["answer-dashboard"]
 
   in
       String.join "/" path
