@@ -1,4 +1,4 @@
-port module Page.AnswerDashboard exposing (Model, Msg, init, view)
+port module Page.AnswerDashboard exposing (Model, Msg, init, toSession, update, view)
 
 import Base64
 import Bytes exposing (Bytes)
@@ -11,6 +11,7 @@ import Json.Encode as Encode
 import File exposing (File)
 import File.Select as Select
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
+import Session exposing (Session)
 import Url.Builder as UrlBuilder
 import Task
 
@@ -21,6 +22,7 @@ type alias Model =
   , searchForm : SearchForm
   , answers : List Answer
   , questions : List Question
+  , session : Session
   }
 
 type  AnswerFormStatus =
@@ -53,9 +55,51 @@ type AudioResource =
   F File
   |R Bytes
 
-init : Model -> (Model, Cmd Msg)
-init model =
-  (model, Cmd.none)
+init : Session -> (Model, Cmd Msg)
+init session =
+  let
+      mod =
+        initModel session
+  in
+      (mod, Cmd.none)
+
+
+initModel : Session -> Model
+initModel sess =
+  let
+      mod =
+        { session = sess
+        , answerForm = initAnswerForm
+        , sendForm = initSendForm
+        , searchForm = initSearchForm
+        , answers  = []
+        , questions = []
+        }
+  in
+      mod
+
+initAnswerForm : AnswerForm
+initAnswerForm =
+  { status = NoData
+  , audio = Nothing
+  , desc = ""
+  , tags = ""
+  , audio_url = Nothing
+  }
+
+initSendForm : SendForm
+initSendForm =
+        { answer_audio = ""
+        , queue_owner = "master"
+        , question_ids = []
+        }
+
+initSearchForm : SearchForm
+initSearchForm =
+        { tags = ""
+        , description = ""
+        }
+
 
 
 type Msg =
@@ -678,29 +722,10 @@ answersDecoder =
   JD.list answerDecoder
 
 
+toSession : Model -> Session
+toSession { session } =
+  session
 
-
-initAnswerForm : AnswerForm
-initAnswerForm =
-  { status = NoData
-  , audio = Nothing
-  , desc = ""
-  , tags = ""
-  , audio_url = Nothing
-  }
-
-initSendForm : SendForm
-initSendForm =
-        { answer_audio = ""
-        , queue_owner = "master"
-        , question_ids = []
-        }
-
-initSearchForm : SearchForm
-initSearchForm =
-        { tags = ""
-        , description = ""
-        }
 
 
 port startRecording : () -> Cmd msg
