@@ -42,6 +42,6 @@ profile (Agronomist data) =
 decode : Decoder Agronomist
 decode =
     Decode.map2 Internals
-        (Decode.field "phone" Cred.decoder)
+        (Decode.field "token" Cred.decoder)
         (Decode.field "profile" Profile.decoder)
         |> Decode.map Agronomist
