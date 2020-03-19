@@ -40,8 +40,21 @@ init flags url key =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-  Sub.none
+subscriptions model =
+  case model of
+    NotFound _ ->
+      Sub.none
+
+    Redirect _ ->
+      Sub.none
+
+    Landing landing ->
+      Sub.map GotLandingMsg (Landing.subscriptions landing)
+
+    AnswerDashboard answersModel ->
+      Sub.map GotAnswerMsg (AnswerDashboard.subscriptions answersModel)
+
+
 
 type Model =
   Redirect Session
