@@ -1,4 +1,4 @@
-module Page.Landing exposing (Model, Msg, init,  view)
+module Page.Landing exposing (Model, Msg, init, toSession, update, view)
 
 
 import Html exposing (Html, div, text)
@@ -60,4 +60,7 @@ view _ =
       }
 
 
+toSession : Model -> Session
+toSession { session } =
+  session
 
