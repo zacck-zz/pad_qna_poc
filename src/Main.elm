@@ -33,6 +33,7 @@ init flags url key =
       decoded_session =
         flags
         |> Session.decode key
+
   in
       changeRouteTo (Just (Route.urlToRoute url))
         (Redirect decoded_session)
@@ -146,6 +147,7 @@ changeRouteTo maybeRoute model =
   let
       session =
         toSession model
+
   in
       case maybeRoute of
         Nothing ->
@@ -156,7 +158,7 @@ changeRouteTo maybeRoute model =
             |> updateWith Landing GotLandingMsg model
 
         Just (Route.AnswerDashboard phone) ->
-          AnswerDashboard.init session
+          AnswerDashboard.init phone session
             |> updateWith AnswerDashboard GotAnswerMsg model
 
 updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> (subModel, Cmd subMsg) -> ( Model, Cmd Msg)
