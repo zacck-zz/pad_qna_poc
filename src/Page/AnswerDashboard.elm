@@ -582,7 +582,7 @@ viewAnswer ans =
      [ td [ class "td-check"]
           [ input [ type_ "radio", value ans.audio_url, name "answer_audio", onInput AnswerSelected] [] ]
      , td [] [ text ans.description]
-     , td [] [ text ans.tags]
+     , td [] [ text (String.join "," ans.tags)]
      , td []
           [ audio [ controls True ]
                   [ source [ src ("http://localhost:5000/" ++ ans.audio_url) ] [] ]
@@ -818,7 +818,7 @@ type alias Answer =
   { audio_url: String
   , description: String
   , fname: String
-  , tags: String
+  , tags: List String
   }
 
 answerDecoder : Decoder Answer
@@ -827,7 +827,7 @@ answerDecoder =
     (at ["audio_url"] string)
     (at ["description"] string)
     (at ["fname"] string)
-    (at ["tags"] string)
+    (at ["tags"] (JD.list JD.string))
 
 getAnswers : Cmd Msg
 getAnswers =
