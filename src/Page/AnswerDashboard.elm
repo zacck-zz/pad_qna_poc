@@ -55,8 +55,8 @@ type AudioResource =
   F File
   |R Bytes
 
-init : Session -> (Model, Cmd Msg)
-init session =
+init : Maybe String -> Session -> (Model, Cmd Msg)
+init maybePhone session =
   let
       mod =
         initModel session
