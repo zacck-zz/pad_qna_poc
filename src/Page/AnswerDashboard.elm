@@ -20,6 +20,7 @@ type alias Model =
   { answerForm : AnswerForm
   , sendForm : SendForm
   , searchForm : SearchForm
+  , reassignForm : ReassignForm
   , answers : List Answer
   , questions : List Question
   , session : Session
@@ -51,23 +52,39 @@ type alias SearchForm =
   , description : String
   }
 
+type alias ReassignForm =
+  { src : String
+  , dest : String
+  , questions : List Int
+  }
+
 type AudioResource =
   F File
   |R Bytes
 
 init : Maybe String -> Session -> (Model, Cmd Msg)
 init maybePhone session =
-  let
-      mod =
-        initModel session
-  in
-      ( mod,
-        Cmd.batch
+  case maybePhone of
+    Just p ->
+      let
+          profileData =
+              { phone = p }
+
+          loginData =
+              { token = p
+              , user = profileData
+              }
+      in
+          (initModel session, Session.login loginData)
+
+    Nothing ->
+      ( initModel session
+      , Cmd.batch
           [ getAnswers
           , getQuestions session
           ]
+      )
 
-       )
 
 
 initModel : Session -> Model
@@ -78,6 +95,7 @@ initModel sess =
         , answerForm = initAnswerForm
         , sendForm = initSendForm
         , searchForm = initSearchForm
+        , reassignForm = initReassignForm
         , answers  = []
         , questions = []
         }
@@ -106,6 +124,12 @@ initSearchForm =
         , description = ""
         }
 
+initReassignForm : ReassignForm
+initReassignForm =
+  { src = ""
+  , dest = ""
+  , questions = []
+  }
 
 
 type Msg =
@@ -129,6 +153,9 @@ type Msg =
   | FilterAnswers
   | SetSearchDesc String
   | SetSearchTags String
+  | SetReassignee String
+  | Reassign
+  | GotSession Session
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -340,6 +367,9 @@ update msg model =
           sendForm =
             model.sendForm
 
+          reassignForm =
+            model.reassignForm
+
           q_ids =
             sendForm.question_ids
 
@@ -357,8 +387,20 @@ update msg model =
 
               Nothing ->
                 sendForm
+
+          updatedReassignForm =
+            case maybeId of
+              Just id ->
+                if List.member id q_ids then
+                  { reassignForm | questions = q_ids |> List.filter (\x -> x /= id) }
+
+                else
+                  { reassignForm | questions = (id :: q_ids) }
+
+              Nothing ->
+                reassignForm
       in
-          ({ model | sendForm = updatedSendForm} , Cmd.none)
+          ({ model | sendForm = updatedSendForm, reassignForm = updatedReassignForm } , Cmd.none)
 
     AnswerSent res ->
       case res of
@@ -448,12 +490,58 @@ update msg model =
             , Cmd.none
             )
 
+    SetReassignee string ->
+       let
+           reassignForm =
+             model.reassignForm
 
+           updatedReassignForm =
+             { reassignForm | dest = string }
+       in
+           ( { model | reassignForm = updatedReassignForm }, Cmd.none )
+
+    Reassign ->
+      let
+          form =
+            model.reassignForm
+
+          phone =
+            Session.phoneString model.session
+      in
+          if String.isEmpty form.dest then
+            (model, Cmd.none)
+          else
+            let
+                body =
+                  Encode.object
+                    [ ("src_queue_owner", Encode.string phone)
+                    , ("dest_queue_owner", Encode.string form.dest)
+                    , ("question_ids", Encode.list Encode.int form.questions)
+                    ]
+                    |> jsonBody
+            in
+               ( model
+               , Http.post
+                  { url = "http://localhost:5000/reassign"
+                  , body = body
+                  , expect = Http.expectJson GotAnswers answersDecoder
+                  }
+               )
+
+    GotSession sess ->
+      ( model
+      , Cmd.batch
+          [ getAnswers
+          , getQuestions sess
+          ]
+      )
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions model =
   Sub.batch
-    [ consumeAudio UploadAnswer ]
+    [ consumeAudio UploadAnswer
+    , Session.changes GotSession (Session.navKey model.session)
+    ]
 
 {-| View Stuff -}
 view : Model -> { title : String, body : Html Msg }
@@ -465,6 +553,11 @@ view model =
         , div [ id "send-col"]
               [ button [ id "send", onClick SendAnswer]
                        [ text "Send!" ]
+              , div []
+                    [ label [] [ text "Reassignee:" ]
+                    , input [ type_ "text", onInput SetReassignee ] []
+                    , button [ onClick Reassign ] [ text "Reassign" ]
+                    ]
               ]
         , viewAnswersSection model
         ]
