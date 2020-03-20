@@ -2,6 +2,7 @@ module Route exposing (Route(..), replaceUrl, urlToRoute)
 
 import Browser.Navigation as Nav
 import Url
+import Url.Builder as UrlBuilder
 import Url.Parser as Parser exposing ((</>), (<?>), Parser, oneOf, s, string)
 import Url.Parser.Query as Query
 
@@ -19,7 +20,7 @@ parser : Parser (Route -> a) a
 parser =
   oneOf
     [ Parser.map Landing Parser.top
-    , Parser.map AnswerDashboard ( s "answer-dashboard" <?> Query.string "queue")
+    , Parser.map AnswerDashboard ( s "answer-dashboard" <?> Query.string "owner")
     ]
 
 toPath : Route -> String
@@ -28,13 +29,22 @@ toPath route =
       path =
         case route of
           Landing ->
-            [""]
+            []
+            |> UrlBuilder.absolute []
 
-          AnswerDashboard _ ->
-            ["answer-dashboard"]
+          AnswerDashboard maybePhone ->
+            let
+                phone =
+                  maybePhone
+                  |> Maybe.withDefault "master"
 
+                p =
+                  [ UrlBuilder.string "owner" phone ]
+                  |> UrlBuilder.absolute ["answer-dashboard"]
+            in
+                p
   in
-      String.join "/" path
+      path
 
 urlToRoute : Url.Url -> Route
 urlToRoute url =
