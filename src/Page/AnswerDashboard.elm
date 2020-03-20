@@ -221,11 +221,18 @@ update msg model =
                   R r ->
                     bytesPart "audio"  "audio/*" r
 
+
+              ts =
+                model.answerForm.tags
+                |> String.split ","
+                |> Encode.list Encode.string
+                |> Encode.encode 0
+
               body =
                 multipartBody
                   [ files
                   , stringPart "description" model.answerForm.desc
-                  , stringPart "tags" model.answerForm.tags
+                  , stringPart "tags" ts
                   ]
           in
               (model
@@ -393,19 +400,24 @@ update msg model =
       let
          tags =
            model.searchForm.tags
+           |> String.split ","
 
          description =
            model.searchForm.description
 
-         queryParams =
-           UrlBuilder.absolute ["list"]
-                    [ UrlBuilder.string "tags" tags, UrlBuilder.string "description" description]
+         body =
+            Encode.object
+              [ ("description", Encode.string description)
+              , ("tags", Encode.list Encode.string tags)
+              ]
+            |> jsonBody
 
-         queryUrl = "http://localhost:5000" ++ queryParams
+         queryUrl = "http://localhost:5000/list"
       in
           ( model
-          , Http.get
+          , Http.post
               { url = queryUrl
+              , body = body
               , expect = Http.expectJson GotAnswers answersDecoder
               }
           )
@@ -726,8 +738,17 @@ answerDecoder =
 
 getAnswers : Cmd Msg
 getAnswers =
-  Http.get
+  let
+      body =
+        Encode.object
+          [ ("description", Encode.string "")
+          , ("tags", Encode.list Encode.string [])
+          ]
+        |> jsonBody
+  in
+  Http.post
     { url = "http://localhost:5000/list"
+    , body = body
     , expect = Http.expectJson GotAnswers answersDecoder
     }
 
