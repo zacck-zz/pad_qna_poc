@@ -3,12 +3,9 @@ module Agronomist exposing (Agronomist, cred, decode, phone, profile)
 {-| The logged in Agronomist on the Dashboard
 -}
 
-import Agronomist.Cred as Cred exposing (..)
-import Agronomistname exposing (..)
+import Agronomist.Cred as Cred exposing (Cred)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline exposing (custom, required)
-import Json.Encode as Encode exposing (Value)
-import Profile exposing (..)
+import Profile exposing (AgronomistPhone, Profile)
 
 
 

@@ -2,10 +2,9 @@ port module Page.AnswerDashboard exposing (Model, Msg, init, subscriptions, toSe
 
 import Base64
 import Bytes exposing (Bytes)
-import Bytes.Decode as BDecode
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, label, p, source, table, tbody, td, text, textarea, th, thead, tr)
+import Html exposing (Html, audio, button, div,  h2, h3, input, label, p, source, table, tbody, td, text, textarea, th, thead, tr)
 import Html.Attributes exposing (checked, class, cols, controls, for, id, name, rows, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
@@ -295,7 +294,7 @@ update msg model =
                 Ok a ->
                     ( { model | answers = a }, Cmd.none )
 
-                Err e ->
+                Err _ ->
                     ( model
                     , Cmd.none
                     )
@@ -307,7 +306,7 @@ update msg model =
                     , Cmd.none
                     )
 
-                Err err ->
+                Err _ ->
                     ( model
                     , Cmd.none
                     )
@@ -418,7 +417,7 @@ update msg model =
                     , Cmd.none
                     )
 
-                Err er ->
+                Err _ ->
                     ( model, Cmd.none )
 
         SetAudioUrl url ->
@@ -573,18 +572,6 @@ view model =
                 ]
     in
     { title = "Answers ~ Dashboard", body = views }
-
-
-viewAnswerDashBoard : Model -> Html Msg
-viewAnswerDashBoard model =
-    div [ class "container" ]
-        [ viewQuestions model
-        , div [ id "send-col" ]
-            [ button [ id "send", onClick SendAnswer ]
-                [ text "Send!" ]
-            ]
-        , viewAnswersSection model
-        ]
 
 
 viewAnswer : Answer -> Html Msg

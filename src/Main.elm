@@ -2,18 +2,16 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
-import Html exposing (Html, audio, button, div, form, h1, h2, h3, input, label, p, source, table, tbody, td, text, textarea, th, thead, tr)
-import Html.Attributes exposing (checked, class, cols, controls, for, id, name, rows, src, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html
 import Json.Encode exposing (Value)
-import Page exposing (Page, view)
+import Page exposing (view)
 import Page.AnswerDashboard as AnswerDashboard
 import Page.Blank as Blank
 import Page.Landing as Landing
 import Page.NotFound as NotFound
 import Route exposing (Route, urlToRoute)
 import Session exposing (Session)
-import Url exposing (..)
+import Url
 
 
 main : Program Value Model Msg
@@ -62,11 +60,6 @@ type Model
     | AnswerDashboard AnswerDashboard.Model
 
 
-type alias RoutingData =
-    { key : Nav.Key
-    , url : Url.Url
-    , current : Route
-    }
 
 
 type Msg
@@ -158,7 +151,7 @@ changeRouteTo maybeRoute model =
 
 
 updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
-updateWith toModel toMsg model ( subModel, subCmd ) =
+updateWith toModel toMsg _ ( subModel, subCmd ) =
     ( toModel subModel
     , Cmd.map toMsg subCmd
     )

@@ -1,9 +1,7 @@
 module Profile exposing (AgronomistPhone, Profile, decoder, encode, phoneToString)
 
-import Agronomist.Cred as Cred exposing (Cred)
-import Agronomistname exposing (Agronomistname)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline exposing (custom, required)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode as Encode exposing (Value)
 
 

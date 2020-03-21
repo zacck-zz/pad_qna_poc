@@ -1,11 +1,11 @@
 port module Session exposing (Session, changes, cred, decode, login, logout, navKey, phoneString, viewer)
 
-import Agronomist exposing (..)
-import Agronomist.Cred as Cred exposing (..)
+import Agronomist exposing (Agronomist, phone)
+import Agronomist.Cred as Cred exposing (Cred)
 import Browser.Navigation as Nav
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as Decode
 import Json.Encode as Encode
-import Profile exposing (..)
+import Profile exposing  (phoneToString)
 
 
 type Session
@@ -16,7 +16,7 @@ type Session
 phoneString : Session -> String
 phoneString session =
     case session of
-        Guest key ->
+        Guest _ ->
             "master"
 
         LoggedIn _ agronomist ->

@@ -3,7 +3,7 @@ module Route exposing (Route(..), replaceUrl, urlToRoute)
 import Browser.Navigation as Nav
 import Url
 import Url.Builder as UrlBuilder
-import Url.Parser as Parser exposing ((</>), (<?>), Parser, oneOf, s, string)
+import Url.Parser as Parser exposing ((<?>), Parser, oneOf, s, string)
 import Url.Parser.Query as Query
 
 

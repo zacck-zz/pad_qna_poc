@@ -3,8 +3,7 @@ module Page.Landing exposing (Model, Msg, init, subscriptions, toSession, update
 import Html exposing (Html, button, div, input, label, text)
 import Html.Attributes exposing (class, type_)
 import Html.Events exposing (onClick, onInput)
-import Profile exposing (phoneToString)
-import Route exposing (Route)
+import Route
 import Session exposing (Session)
 
 
@@ -24,7 +23,7 @@ init sess =
 
         cmd =
             case Session.cred sess of
-                Just cred ->
+                Just _ ->
                     let
                         maybePhone =
                             sess

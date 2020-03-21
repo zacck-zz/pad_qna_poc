@@ -1,4 +1,4 @@
-module Agronomistname exposing (Agronomistname, decoder, encode, toHtml, toString)
+module Agronomistname exposing (Agronomistname, decoder, encode, toHtml, toString, urlParser)
 
 import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
