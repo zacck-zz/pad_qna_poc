@@ -526,11 +526,11 @@ update msg model =
                             ]
                             |> jsonBody
                 in
-                ( model
+                ( { model | reassignForm = initReassignForm }
                 , Http.post
                     { url = "http://localhost:5000/reassign"
                     , body = body
-                    , expect = Http.expectJson GotAnswers answersDecoder
+                    , expect = Http.expectJson GotQuestions questionsDecoder
                     }
                 )
 
@@ -564,7 +564,7 @@ view model =
                         [ text "Send!" ]
                     , div []
                         [ label [] [ text "Reassignee:" ]
-                        , input [ type_ "text", onInput SetReassignee ] []
+                        , input [ type_ "text", onInput SetReassignee, value model.reassignForm.dest ] []
                         , button [ onClick Reassign ] [ text "Reassign" ]
                         ]
                     ]
@@ -632,11 +632,11 @@ viewAnswersSection model =
             [ h3 [] [ text "Add Answer:" ]
             , div []
                 [ label [ for "description" ] [ text "Description" ]
-                , textarea [ cols 80, rows 4, onInput SetDescription ] []
+                , textarea [ cols 80, rows 4, onInput SetDescription, value model.answerForm.desc ] []
                 ]
             , div []
                 [ label [ for "tags" ] [ text "Tags" ]
-                , input [ type_ "text", onInput SetTags ] []
+                , input [ type_ "text", onInput SetTags, value model.answerForm.tags ] []
                 ]
             , viewRecordingForm model
             , div []
