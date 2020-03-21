@@ -1,10 +1,10 @@
-port module Session exposing(Session, decode, navKey, login, changes, cred, phoneString, viewer, logout)
+port module Session exposing (Session, changes, cred, decode, login, logout, navKey, phoneString, viewer)
 
+import Agronomist exposing (..)
+import Agronomist.Cred as Cred exposing (..)
 import Browser.Navigation as Nav
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Agronomist exposing (..)
-import Agronomist.Cred as Cred exposing (..)
 import Profile exposing (..)
 
 
@@ -12,17 +12,17 @@ type Session
     = LoggedIn Nav.Key Agronomist
     | Guest Nav.Key
 
+
 phoneString : Session -> String
 phoneString session =
-  case session of
-    Guest key ->
-      "master"
+    case session of
+        Guest key ->
+            "master"
 
-
-    LoggedIn _ agronomist ->
-      agronomist
-      |> phone
-      |> phoneToString
+        LoggedIn _ agronomist ->
+            agronomist
+                |> phone
+                |> phoneToString
 
 
 navKey : Session -> Nav.Key
@@ -42,7 +42,6 @@ decode key value =
             Decode.decodeValue Decode.string value
                 |> Result.andThen (Decode.decodeString Agronomist.decode)
                 |> Result.toMaybe
-
     in
     case decoded_session of
         Just agronomist ->
@@ -71,6 +70,7 @@ cred session =
         Guest _ ->
             Nothing
 
+
 changes : (Session -> msg) -> Nav.Key -> Sub msg
 changes toMsg key =
     sessionChanged (\val -> toMsg (decode key val))
@@ -89,7 +89,7 @@ login { token, user } =
                 [ ( "token", Cred.encodeToken token )
                 , ( "profile"
                   , Encode.object
-                        [ ( "phone", Encode.string (user.phone) ) ]
+                        [ ( "phone", Encode.string user.phone ) ]
                   )
                 ]
 
@@ -100,9 +100,8 @@ login { token, user } =
         |> Just
         |> storeSession
 
+
 port storeSession : Maybe String -> Cmd msg
 
 
 port sessionChanged : (Decode.Value -> msg) -> Sub msg
-
-

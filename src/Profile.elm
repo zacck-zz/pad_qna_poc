@@ -1,14 +1,15 @@
-module Profile exposing (Profile, AgronomistPhone, encode, decoder, phoneToString)
+module Profile exposing (AgronomistPhone, Profile, decoder, encode, phoneToString)
 
-import Agronomistname exposing (Agronomistname)
 import Agronomist.Cred as Cred exposing (Cred)
+import Agronomistname exposing (Agronomistname)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode exposing (Value)
 import Json.Decode.Pipeline exposing (custom, required)
+import Json.Encode as Encode exposing (Value)
 
 
-type AgronomistPhone =
-  AgronomistPhone String
+type AgronomistPhone
+    = AgronomistPhone String
+
 
 type alias Profile =
     { phone : AgronomistPhone }
@@ -16,7 +17,7 @@ type alias Profile =
 
 phoneToString : AgronomistPhone -> String
 phoneToString (AgronomistPhone p) =
-  p
+    p
 
 
 encode : Profile -> Value
@@ -27,7 +28,8 @@ encode info =
 
 phoneDecoder : Decoder AgronomistPhone
 phoneDecoder =
-    Decode.map AgronomistPhone (Decode.string)
+    Decode.map AgronomistPhone Decode.string
+
 
 decoder : Decoder Profile
 decoder =

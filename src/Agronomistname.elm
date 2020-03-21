@@ -1,6 +1,6 @@
-module Agronomistname exposing (Agronomistname, toString, toHtml, decoder, encode)
+module Agronomistname exposing (Agronomistname, decoder, encode, toHtml, toString)
 
-import Html exposing(Html)
+import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import Url.Parser
@@ -8,6 +8,7 @@ import Url.Parser
 
 type Agronomistname
     = Agronomistname String
+
 
 toString : Agronomistname -> String
 toString (Agronomistname playername) =
@@ -23,9 +24,11 @@ decoder : Decoder Agronomistname
 decoder =
     Decode.map Agronomistname Decode.string
 
+
 encode : Agronomistname -> Value
 encode (Agronomistname playername) =
     Encode.string playername
+
 
 urlParser : Url.Parser.Parser (Agronomistname -> a) a
 urlParser =
