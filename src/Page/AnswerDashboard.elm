@@ -4,7 +4,7 @@ import Base64
 import Bytes exposing (Bytes)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, audio, button, div,  h2, h3, input, label, p, source, table, tbody, td, text, textarea, th, thead, tr)
+import Html exposing (Html, audio, button, div, h2, h3, input, label, p, source, table, tbody, td, text, textarea, th, thead, tr)
 import Html.Attributes exposing (checked, class, cols, controls, for, id, name, rows, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
@@ -337,13 +337,16 @@ update msg model =
 
         SendAnswer ->
             let
+                queue_owner =
+                    model.session |> Session.phoneString
+
                 encodedList =
                     model.sendForm.question_ids
                         |> Encode.list Encode.int
 
                 reqBody =
                     Encode.object
-                        [ ( "queue_owner", Encode.string model.sendForm.queue_owner )
+                        [ ( "queue_owner", Encode.string queue_owner )
                         , ( "answer_audio", Encode.string model.sendForm.answer_audio )
                         , ( "question_ids", encodedList )
                         ]
