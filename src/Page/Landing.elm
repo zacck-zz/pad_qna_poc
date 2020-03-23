@@ -42,6 +42,7 @@ type Msg
     = SetQueue String
     | GoToQueue
     | GotSession Session
+    | GoToMaster 
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -83,6 +84,17 @@ update msg model =
             in
             ( updatedModel, routeCmd )
 
+        GoToMaster ->
+            let
+                routeCmd =
+                    "master"
+                    |> Just 
+                    |> Route.AnswerDashboard
+                    |> Route.replaceUrl (Session.navKey model.session)
+            in
+            ( model, routeCmd )
+        
+
 
 view : Model -> { title : String, body : Html Msg }
 view _ =
@@ -95,7 +107,7 @@ view _ =
                         , input [ type_ "text", onInput SetQueue ] []
                         ]
                     , div [ class "file-form" ]
-                        [ button [] [ text "Master" ]
+                        [ button [ onClick GoToMaster ] [ text "Master" ]
                         , button [ onClick GoToQueue ] [ text "Set Queue" ]
                         ]
                     ]
