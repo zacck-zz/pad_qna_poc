@@ -538,7 +538,7 @@ update msg model =
                 )
 
         GotSession sess ->
-            ( model
+            ( {  model | session = sess }
             , Cmd.batch
                 [ getAnswers
                 , getQuestions sess
