@@ -1,6 +1,7 @@
 port module Page.AnswerDashboard exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
 import Base64
+import Browser.Navigation as Nav
 import Bytes exposing (Bytes)
 import File exposing (File)
 import File.Select as Select
@@ -10,6 +11,7 @@ import Html.Events exposing (onClick, onInput)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
 import Json.Decode as JD exposing (Decoder, at, int, map3, map4, string)
 import Json.Encode as Encode
+import Route exposing (Route)
 import Session exposing (Session)
 import Task
 import Url.Builder as UrlBuilder
@@ -165,6 +167,7 @@ type Msg
     | SetReassignee String
     | Reassign
     | GotSession Session
+    | Logout
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -545,6 +548,14 @@ update msg model =
                 ]
             )
 
+        Logout ->
+            ( model
+            , Cmd.batch
+                [ Session.logout
+                , Nav.load "/"
+                ]
+            )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -569,6 +580,11 @@ view model =
                         [ label [] [ text "Reassignee:" ]
                         , input [ type_ "text", onInput SetReassignee, value model.reassignForm.dest ] []
                         , button [ onClick Reassign ] [ text "Reassign" ]
+                        ]
+                    , div []
+                        [ p []
+                            [ text "End this Session" ]
+                        , button [ onClick Logout ] [ text "Logout" ]
                         ]
                     ]
                 , viewAnswersSection model
