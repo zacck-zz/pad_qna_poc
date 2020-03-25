@@ -538,7 +538,7 @@ update msg model =
                 )
 
         GotSession sess ->
-            ( {  model | session = sess }
+            ( { model | session = sess }
             , Cmd.batch
                 [ getAnswers
                 , getQuestions sess
@@ -670,8 +670,15 @@ viewRecordingForm { answerForm } =
                     text ""
 
         uploadButton =
+            let
+                element =
+                    button [ onClick WavRequested ] [ text "Upload" ]
+            in
             case status of
                 NoData ->
+                    element
+
+                Selecting ->
                     button [ onClick WavRequested ] [ text "Upload" ]
 
                 _ ->
