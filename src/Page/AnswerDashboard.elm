@@ -276,7 +276,7 @@ update msg model =
                     in
                     ( model
                     , Http.post
-                        { url = "http://localhost:5000/add"
+                        { url = "http://localhost:5001/add"
                         , body = body
                         , expect = Http.expectWhatever GotUploadResponse
                         }
@@ -467,7 +467,7 @@ update msg model =
                         |> jsonBody
 
                 queryUrl =
-                    "http://localhost:5000/list"
+                    "http://localhost:5001/list"
             in
             ( model
             , Http.post
@@ -577,14 +577,12 @@ view model =
                     [ button [ id "send", onClick SendAnswer ]
                         [ text "Send!" ]
                     , div []
-                        [ label [] [ text "Reassignee:" ]
+                        [ label [] [ text "Reassign to:" ]
                         , input [ type_ "text", onInput SetReassignee, value model.reassignForm.dest ] []
                         , button [ onClick Reassign ] [ text "Reassign" ]
                         ]
                     , div []
-                        [ p []
-                            [ text "End this Session" ]
-                        , button [ onClick Logout ] [ text "Logout" ]
+                        [ button [ onClick Logout ] [ text "Logout" ]
                         ]
                     ]
                 , viewAnswersSection model
@@ -602,7 +600,7 @@ viewAnswer ans =
         , td [] [ text (String.join "," ans.tags) ]
         , td []
             [ audio [ controls True ]
-                [ source [ src ("http://localhost:5000/" ++ ans.audio_url) ] [] ]
+                [ source [ src ("http://localhost:5001/" ++ ans.audio_url) ] [] ]
             ]
         ]
 
@@ -619,22 +617,22 @@ viewAnswerList model =
     div []
         [ h2 [] [ text "Answers" ]
         , div [ class "search-form" ]
-            [ label [] [ text "Search" ]
-            , div []
-                [ label [] [ text "tags" ]
+            [ div []
+                [ label [] [ text "Tags" ]
                 , input [ type_ "text", value tags, onInput SetSearchTags ] []
                 ]
             , div []
-                [ label [] [ text "description" ]
+                [ label [] [ text "Description" ]
                 , input [ type_ "text", value desc, onInput SetSearchDesc ] []
                 ]
-            , button [ onClick FilterAnswers ] [ text "Search" ]
+            , button [ onClick FilterAnswers ] [ text "Filter" ]
             ]
         , table []
             [ thead []
                 [ tr []
                     [ th [] [ text "Send" ]
                     , th [] [ text "Description" ]
+                    , th [] [ text "Tags" ]
                     , th [] [ text "Answer" ]
                     ]
                 ]
@@ -650,12 +648,12 @@ viewAnswersSection model =
         [ div [ id "add-answer" ]
             [ h3 [] [ text "Add Answer:" ]
             , div []
-                [ label [ for "description" ] [ text "Description" ]
-                , textarea [ cols 80, rows 4, onInput SetDescription, value model.answerForm.desc ] []
-                ]
-            , div []
                 [ label [ for "tags" ] [ text "Tags" ]
                 , input [ type_ "text", onInput SetTags, value model.answerForm.tags ] []
+                ]
+            , div []
+                [ label [ for "description" ] [ text "Description" ]
+                , input [ type_ "text", onInput SetDescription, value model.answerForm.desc ] []
                 ]
             , viewRecordingForm model
             , div []
@@ -677,10 +675,9 @@ viewRecordingForm { answerForm } =
                     text ""
 
                 Recording ->
-                    div [ class "recording-status" ]
-                        [ p [] [ text "red circle while recording" ]
-                        , button [ onClick StopRecording ] [ text "Stop" ]
-                        ]
+                    
+                    -- TODO red circle
+                    button [ onClick StopRecording ] [ text "Stop" ]
 
                 _ ->
                     text ""
@@ -725,28 +722,27 @@ viewRecordingForm { answerForm } =
                 Recorded ->
                     "Audio Recorded"
     in
-    div [ id "answers" ]
-        [ p [] [ text statusText ]
-        , div [ class "file-form" ]
-            [ recordButton
+    div [ id "recording-form" ]
+        [ div [ class "file-form" ]
+            [ label [] [ text "Audio" ]
+            , recordButton
             , uploadButton
-            ]
-        , viewRecordingSection
-        , case answerForm.audio_url of
-            Nothing ->
-                text ""
+            , viewRecordingSection
+            , case answerForm.audio_url of
+                Nothing ->
+                    text ""
 
-            Just ar ->
-                ar
-                    |> viewSuppliedAudio
+                Just ar ->
+                    ar
+                        |> viewSuppliedAudio
+            ]
         ]
 
 
 viewSuppliedAudio : String -> Html Msg
 viewSuppliedAudio audioresource =
     div []
-        [ p [] [ text "Audio Supplied" ]
-        , audio [ controls True ]
+        [ audio [ controls True ]
             [ source [ src audioresource ] [] ]
         , button [ onClick ClearAudio ] [ text "Remove" ]
         ]
@@ -778,10 +774,9 @@ viewQuestion ids ques =
                 []
             ]
         , td [] [ text ques.q_meta ]
-        , td [] [ text stringId ]
         , td []
             [ audio [ controls True ]
-                [ source [ src ("http://localhost:5000/" ++ ques.q_audio), type_ "audio/wav" ] [] ]
+                [ source [ src ("http://localhost:5001/" ++ ques.q_audio), type_ "audio/wav" ] [] ]
             ]
         ]
 
@@ -798,7 +793,7 @@ viewQuestions { sendForm, questions } =
                     , th []
                         [ text "Phone" ]
                     , th []
-                        [ text "Received" ]
+                        [ text "Question" ]
                     ]
                 ]
             , tbody []
@@ -873,7 +868,7 @@ getAnswers =
                 |> jsonBody
     in
     Http.post
-        { url = "http://localhost:5000/list"
+        { url = "http://localhost:5001/list"
         , body = body
         , expect = Http.expectJson GotAnswers answersDecoder
         }
