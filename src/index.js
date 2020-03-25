@@ -5,11 +5,20 @@ let recordedAudio =  [];
 
 const app = Elm.Main.init({ flags:  {}})
 
-console.log(app)
+let session = localStorage.getItem("session")
+
+app.ports.storeSession.subscribe(function(sessionData) {
+	localStorage.setItem("session", sessionData)
+
+	setTimeout(function() { app.ports.sessionChanged.send(sessionData); }, 0);
+})
+
+
 app.ports.startRecording.subscribe(function() {
 	console.log("Now we record audio");
 	recordAudio();
 })
+
 
 app.ports.stopRecording.subscribe(function() {
 	console.log("Now we are done recording audio");
