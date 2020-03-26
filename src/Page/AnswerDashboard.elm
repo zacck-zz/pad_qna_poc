@@ -9,10 +9,12 @@ import Html exposing (Html, audio, button, div, h2, h3, input, label, p, source,
 import Html.Attributes exposing (checked, class, cols, controls, for, id, name, rows, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (bytesPart, filePart, jsonBody, multipartBody, stringPart)
-import Json.Decode as JD exposing (Decoder, at, int, map3, map4, string)
+import Json.Decode as JD exposing (Decoder, at, int, map, map3, map4, string)
 import Json.Encode as Encode
 import Route exposing (Route)
+import Select
 import Session exposing (Session)
+import Shared
 import Task
 import Url.Builder as UrlBuilder
 
@@ -25,6 +27,8 @@ type alias Model =
     , answers : List Answer
     , questions : List Question
     , session : Session
+    , availableCompleteTags : List String
+    , tagsSelectState : Select.State
     }
 
 
@@ -40,8 +44,8 @@ type alias AnswerForm =
     { status : AnswerFormStatus
     , audio : Maybe AudioResource
     , desc : String
-    , tags : String
     , audio_url : Maybe String
+    , selectedTags : List String
     }
 
 
@@ -105,6 +109,8 @@ initModel sess =
             , reassignForm = initReassignForm
             , answers = []
             , questions = []
+            , availableCompleteTags = []
+            , tagsSelectState = Select.newState ""
             }
     in
     mod
@@ -115,8 +121,8 @@ initAnswerForm =
     { status = NoData
     , audio = Nothing
     , desc = ""
-    , tags = ""
     , audio_url = Nothing
+    , selectedTags = []
     }
 
 
@@ -153,7 +159,6 @@ type Msg
     | GotUploadResponse (Result Http.Error ())
     | GotAnswers (Result Http.Error (List Answer))
     | GotQuestions (Result Http.Error (List Question))
-    | SetTags String
     | SetDescription String
     | SendAnswer
     | AnswerSelected String
@@ -168,6 +173,11 @@ type Msg
     | Reassign
     | GotSession Session
     | Logout
+    | GotTags (Result Http.Error (List Tag))
+    {- AutoComplete Messages -}
+    | OnSelect (Maybe String)
+    | OnRemoveTag String
+    | SelectTag (Select.Msg String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -262,8 +272,7 @@ update msg model =
                                     bytesPart "audio" "audio/*" r
 
                         ts =
-                            model.answerForm.tags
-                                |> String.split ","
+                            model.answerForm.selectedTags
                                 |> Encode.list Encode.string
                                 |> Encode.encode 0
 
@@ -275,11 +284,14 @@ update msg model =
                                 ]
                     in
                     ( model
-                    , Http.post
-                        { url = "http://localhost:5000/add"
-                        , body = body
-                        , expect = Http.expectWhatever GotUploadResponse
-                        }
+                    , Cmd.batch
+                        [ Http.post
+                            { url = "http://localhost:5000/add"
+                            , body = body
+                            , expect = Http.expectWhatever GotUploadResponse
+                            }
+                        , getTags
+                        ]
                     )
 
         GotUploadResponse res ->
@@ -314,17 +326,6 @@ update msg model =
                     , Cmd.none
                     )
 
-        SetTags tags ->
-            let
-                answerForm =
-                    model.answerForm
-
-                updatedForm =
-                    { answerForm | tags = tags }
-            in
-            ( { model | answerForm = updatedForm }
-            , Cmd.none
-            )
 
         SetDescription desc ->
             let
@@ -545,6 +546,7 @@ update msg model =
             , Cmd.batch
                 [ getAnswers
                 , getQuestions sess
+                , getTags
                 ]
             )
 
@@ -556,7 +558,68 @@ update msg model =
                 ]
             )
 
+        OnSelect maybeTag ->
+          let
+              answerForm =
+                model.answerForm
 
+              newTags =
+                maybeTag
+                  |> Maybe.map(List.singleton >> List.append answerForm.selectedTags)
+                  |> Maybe.withDefault []
+
+              updatedAnswerForm =
+                { answerForm | selectedTags = newTags }
+          in
+          ( { model | answerForm = updatedAnswerForm }
+          , Cmd.none
+          )
+
+        OnRemoveTag tagToRemove ->
+          let
+              answerForm =
+                model.answerForm
+
+              filteredTags =
+                List.filter(\currTag -> currTag /= tagToRemove)
+                  answerForm.selectedTags
+
+              updatedAnswerForm =
+                { answerForm |  selectedTags = filteredTags }
+          in
+          ( { model | answerForm = updatedAnswerForm }
+          , Cmd.none
+          )
+
+        SelectTag subMsg ->
+           let
+               selectConfig =
+                 model
+                 |> tagsSelectConfig
+
+               (updatedSelectState, cmd) =
+                 Select.update selectConfig subMsg model.tagsSelectState
+           in
+           ( { model | tagsSelectState = updatedSelectState}
+           , cmd
+           )
+
+        GotTags res ->
+          case res of
+            Ok tags ->
+              let
+                  tagStrings =
+                    tags
+                    |> List.map (\t -> t.tag)
+              in
+              ( { model | availableCompleteTags = tagStrings }
+              , Cmd.none
+              )
+
+            Err _ ->
+              ( model
+              , Cmd.none
+              )
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
@@ -645,7 +708,21 @@ viewAnswerList model =
 
 
 viewAnswersSection : Model -> Html Msg
-viewAnswersSection model =
+viewAnswersSection ({ answerForm } as model) =
+  let
+      currentTags =
+       p []
+         [ text (String.join ", " answerForm.selectedTags) ]
+
+      select =
+        Select.view
+          (tagsSelectConfig model)
+          model.tagsSelectState
+          model.availableCompleteTags
+          model.answerForm.selectedTags
+
+
+  in
     div [ id "answers" ]
         [ div [ id "add-answer" ]
             [ h3 [] [ text "Add Answer:" ]
@@ -653,10 +730,7 @@ viewAnswersSection model =
                 [ label [ for "description" ] [ text "Description" ]
                 , textarea [ cols 80, rows 4, onInput SetDescription, value model.answerForm.desc ] []
                 ]
-            , div []
-                [ label [ for "tags" ] [ text "Tags" ]
-                , input [ type_ "text", onInput SetTags, value model.answerForm.tags ] []
-                ]
+            , div [] [ Html.map SelectTag select ]
             , viewRecordingForm model
             , div []
                 [ button [ onClick SendToServer ] [ text "Upload Answer" ] ]
@@ -807,6 +881,40 @@ viewQuestions { sendForm, questions } =
         ]
 
 
+{- Tags AutoSelect Config -}
+tagsSelectConfig : Model -> Select.Config Msg String
+tagsSelectConfig { tagsSelectState } =
+  let
+     notFoundQueryString =
+      tagsSelectState
+      |> Select.queryFromState
+      |> Maybe.withDefault "Invalid Tag"
+
+  in
+  Select.newConfig
+        { onSelect = OnSelect
+        , toLabel = \tag -> tag
+        , filter = Shared.filter 2 (\tag -> tag)
+        }
+        |> Select.withMultiSelection True
+        |> Select.withOnRemoveItem OnRemoveTag
+        |> Select.withCutoff 12
+        |> Select.withInputId "input-id"
+        |> Select.withInputWrapperStyles
+            [ ( "padding", "0.4rem" ) ]
+        |> Select.withItemClass "p-1 border-b border-gray-500 text-gray-800"
+        |> Select.withItemStyles [ ( "font-size", "1rem" ) ]
+        |> Select.withMenuClass "border border-gray-800"
+        |> Select.withMenuStyles [ ( "background", "white" ) ]
+        |> Select.withNotFound notFoundQueryString
+        |> Select.withNotFoundClass "red"
+        |> Select.withNotFoundStyles [ ( "padding", "0 2rem" ) ]
+        |> Select.withHighlightedItemClass "bg-gray"
+        |> Select.withHighlightedItemStyles []
+        |> Select.withPrompt "Select a Tag"
+        |> Select.withPromptClass "text-gray-800"
+        |> Select.withUnderlineClass "underline"
+
 {-| internal types and decoders
 -}
 type alias Question =
@@ -843,6 +951,28 @@ getQuestions sesh =
         { url = link
         , expect = Http.expectJson GotQuestions questionsDecoder
         }
+
+type alias Tag =
+  { tag : String }
+
+tagDecoder : Decoder Tag
+tagDecoder =
+  map Tag
+    ( at [ "tag" ] string)
+
+tagsDecoder : Decoder (List Tag)
+tagsDecoder =
+  JD.list tagDecoder
+
+
+getTags : Cmd Msg
+getTags =
+  Http.get
+    { url = "http://localhost:5000/get-tags"
+    , expect = Http.expectJson GotTags tagsDecoder
+    }
+
+
 
 
 type alias Answer =
