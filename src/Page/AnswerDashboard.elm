@@ -14,9 +14,9 @@ import Json.Encode as Encode
 import Route exposing (Route)
 import Select
 import Session exposing (Session)
-import Svg exposing (circle, svg)
-import Svg.Attributes exposing (color, cx, cy, height, r, width, viewBox)
 import Shared
+import Svg exposing (circle, svg)
+import Svg.Attributes exposing (color, cx, cy, height, r, viewBox, width)
 import Task
 import Url.Builder as UrlBuilder
 
@@ -31,6 +31,7 @@ type alias Model =
     , session : Session
     , availableCompleteTags : List String
     , tagsSelectState : Select.State
+    , filterTagsSelectState : Select.State
     }
 
 
@@ -59,7 +60,7 @@ type alias SendForm =
 
 
 type alias SearchForm =
-    { tags : String
+    { tags : List String
     , description : String
     }
 
@@ -113,6 +114,7 @@ initModel sess =
             , questions = []
             , availableCompleteTags = []
             , tagsSelectState = Select.newState ""
+            , filterTagsSelectState = Select.newState ""
             }
     in
     mod
@@ -138,7 +140,7 @@ initSendForm =
 
 initSearchForm : SearchForm
 initSearchForm =
-    { tags = ""
+    { tags = []
     , description = ""
     }
 
@@ -170,16 +172,17 @@ type Msg
     | ClearAudio
     | FilterAnswers
     | SetSearchDesc String
-    | SetSearchTags String
     | SetReassignee String
     | Reassign
     | GotSession Session
     | Logout
-    | GotTags (Result Http.Error (List Tag))
-    {- AutoComplete Messages -}
+    | GotTags (Result Http.Error (List Tag)) {- AutoComplete Messages -}
     | OnSelect (Maybe String)
     | OnRemoveTag String
     | SelectTag (Select.Msg String)
+    | OnSelectFilterTag (Maybe String)
+    | OnRemoveFilterTag String
+    | SelectFilterTag (Select.Msg String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -328,7 +331,6 @@ update msg model =
                     , Cmd.none
                     )
 
-
         SetDescription desc ->
             let
                 answerForm =
@@ -457,7 +459,6 @@ update msg model =
             let
                 tags =
                     model.searchForm.tags
-                        |> String.split ","
 
                 description =
                     model.searchForm.description
@@ -478,18 +479,6 @@ update msg model =
                 , body = body
                 , expect = Http.expectJson GotAnswers answersDecoder
                 }
-            )
-
-        SetSearchTags tags ->
-            let
-                searchForm =
-                    model.searchForm
-
-                updatedSearchForm =
-                    { searchForm | tags = tags }
-            in
-            ( { model | searchForm = updatedSearchForm }
-            , Cmd.none
             )
 
         SetSearchDesc desc ->
@@ -561,67 +550,115 @@ update msg model =
             )
 
         OnSelect maybeTag ->
-          let
-              answerForm =
-                model.answerForm
+            let
+                answerForm =
+                    model.answerForm
 
-              newTags =
-                maybeTag
-                  |> Maybe.map(List.singleton >> List.append answerForm.selectedTags)
-                  |> Maybe.withDefault []
+                newTags =
+                    maybeTag
+                        |> Maybe.map (List.singleton >> List.append answerForm.selectedTags)
+                        |> Maybe.withDefault []
 
-              updatedAnswerForm =
-                { answerForm | selectedTags = newTags }
-          in
-          ( { model | answerForm = updatedAnswerForm }
-          , Cmd.none
-          )
+                updatedAnswerForm =
+                    { answerForm | selectedTags = newTags }
+            in
+            ( { model | answerForm = updatedAnswerForm }
+            , Cmd.none
+            )
 
         OnRemoveTag tagToRemove ->
-          let
-              answerForm =
-                model.answerForm
+            let
+                answerForm =
+                    model.answerForm
 
-              filteredTags =
-                List.filter(\currTag -> currTag /= tagToRemove)
-                  answerForm.selectedTags
+                filteredTags =
+                    List.filter (\currTag -> currTag /= tagToRemove)
+                        answerForm.selectedTags
 
-              updatedAnswerForm =
-                { answerForm |  selectedTags = filteredTags }
-          in
-          ( { model | answerForm = updatedAnswerForm }
-          , Cmd.none
-          )
+                updatedAnswerForm =
+                    { answerForm | selectedTags = filteredTags }
+            in
+            ( { model | answerForm = updatedAnswerForm }
+            , Cmd.none
+            )
 
         SelectTag subMsg ->
-           let
-               selectConfig =
-                 model
-                 |> tagsSelectConfig
+            let
+                selectConfig =
+                    model
+                        |> tagsSelectConfig Tags
 
-               (updatedSelectState, cmd) =
-                 Select.update selectConfig subMsg model.tagsSelectState
-           in
-           ( { model | tagsSelectState = updatedSelectState}
-           , cmd
-           )
+                ( updatedSelectState, cmd ) =
+                    Select.update selectConfig subMsg model.tagsSelectState
+            in
+            ( { model | tagsSelectState = updatedSelectState }
+            , cmd
+            )
+
+        OnSelectFilterTag maybeTag ->
+            let
+                searchForm =
+                    model.searchForm
+
+                newTags =
+                    maybeTag
+                        |> Maybe.map (List.singleton >> List.append searchForm.tags)
+                        |> Maybe.withDefault []
+
+                updatedSearchForm =
+                    { searchForm | tags = newTags }
+            in
+            ( { model | searchForm = updatedSearchForm }
+            , Cmd.none
+            )
+
+        OnRemoveFilterTag tagToRemove ->
+            let
+                searchForm =
+                    model.searchForm
+
+                filteredTags =
+                    List.filter (\currTag -> currTag /= tagToRemove)
+                        searchForm.tags
+
+                updatedSearchForm =
+                    { searchForm | tags = filteredTags }
+            in
+            ( { model | searchForm = updatedSearchForm }
+            , Cmd.none
+            )
+
+        SelectFilterTag subMsg ->
+            let
+                selectConfig =
+                    model
+                        |> tagsSelectConfig Filter
+
+                ( updatedSelectState, cmd ) =
+                    Select.update selectConfig subMsg model.tagsSelectState
+            in
+            ( { model | tagsSelectState = updatedSelectState }
+            , cmd
+            )
 
         GotTags res ->
-          case res of
-            Ok tags ->
-              let
-                  tagStrings =
-                    tags
-                    |> List.map (\t -> t.tag)
-              in
-              ( { model | availableCompleteTags = tagStrings }
-              , Cmd.none
-              )
+            case res of
+                Ok tags ->
+                    let
+                        tagStrings =
+                            tags
+                                |> List.map (\t -> t.tag)
+                    in
+                    ( { model | availableCompleteTags = tagStrings }
+                    , Cmd.none
+                    )
 
-            Err _ ->
-              ( model
-              , Cmd.none
-              )
+                Err _ ->
+                    ( model
+                    , Cmd.none
+                    )
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
@@ -682,10 +719,7 @@ viewAnswerList model =
     div []
         [ h2 [] [ text "Answers" ]
         , div [ class "search-form" ]
-            [ div []
-                [ label [] [ text "Tags" ]
-                , input [ type_ "text", value tags, onInput SetSearchTags ] []
-                ]
+            [ div [] []
             , div []
                 [ label [] [ text "Description" ]
                 , input [ type_ "text", value desc, onInput SetSearchDesc ] []
@@ -709,20 +743,18 @@ viewAnswerList model =
 
 viewAnswersSection : Model -> Html Msg
 viewAnswersSection ({ answerForm } as model) =
-  let
-      currentTags =
-       p []
-         [ text (String.join ", " answerForm.selectedTags) ]
+    let
+        currentTags =
+            p []
+                [ text (String.join ", " answerForm.selectedTags) ]
 
-      select =
-        Select.view
-          (tagsSelectConfig model)
-          model.tagsSelectState
-          model.availableCompleteTags
-          model.answerForm.selectedTags
-
-
-  in
+        select =
+            Select.view
+                (tagsSelectConfig Tags model)
+                model.tagsSelectState
+                model.availableCompleteTags
+                model.answerForm.selectedTags
+    in
     div [ id "answers" ]
         [ div [ id "add-answer" ]
             [ h3 [] [ text "Add Answer:" ]
@@ -731,7 +763,6 @@ viewAnswersSection ({ answerForm } as model) =
                 , textarea [ cols 80, rows 4, onInput SetDescription, value model.answerForm.desc ] []
                 ]
             , div [] [ Html.map SelectTag select ]
-
             , viewRecordingForm model
             , div []
                 [ button [ onClick SendToServer ] [ text "Upload Answer" ] ]
@@ -752,13 +783,14 @@ viewRecordingForm { answerForm } =
                     text ""
 
                 Recording ->
-                  div []
-                      [ div []
-                            [ svg [ height "50", width "50", viewBox "0 0 200 200"]
-                                  [ circle [Svg.Attributes.class "circle", cx "50", cy "50", r "50", color "red"] [] ]
+                    div []
+                        [ div []
+                            [ svg [ height "50", width "50", viewBox "0 0 200 200" ]
+                                [ circle [ Svg.Attributes.class "circle", cx "50", cy "50", r "50", color "red" ] [] ]
                             ]
-                      , button [ onClick StopRecording ] [ text "Stop" ]
-                      ]
+                        , button [ onClick StopRecording ] [ text "Stop" ]
+                        ]
+
                 _ ->
                     text ""
 
@@ -882,18 +914,33 @@ viewQuestions { sendForm, questions } =
         ]
 
 
-{- Tags AutoSelect Config -}
-tagsSelectConfig : Model -> Select.Config Msg String
-tagsSelectConfig { tagsSelectState } =
-  let
-     notFoundQueryString =
-      tagsSelectState
-      |> Select.queryFromState
-      |> Maybe.withDefault "Invalid Tag"
 
-  in
-  Select.newConfig
-        { onSelect = OnSelect
+{- Tags AutoSelect Config -}
+
+
+type Selector
+    = Tags
+    | Filter
+
+
+tagsSelectConfig : Selector -> Model -> Select.Config Msg String
+tagsSelectConfig sel { tagsSelectState, filterTagsSelectState } =
+    let
+        ( state, cmd ) =
+            case sel of
+                Tags ->
+                    ( tagsSelectState, OnSelect )
+
+                Filter ->
+                    ( filterTagsSelectState, OnSelectFilterTag )
+
+        notFoundQueryString =
+            state
+                |> Select.queryFromState
+                |> Maybe.withDefault "Invalid Tag"
+    in
+    Select.newConfig
+        { onSelect = cmd
         , toLabel = \tag -> tag
         , filter = Shared.filter 2 (\tag -> tag)
         }
@@ -915,6 +962,7 @@ tagsSelectConfig { tagsSelectState } =
         |> Select.withPrompt "Select a Tag"
         |> Select.withPromptClass "text-gray-800"
         |> Select.withUnderlineClass "underline"
+
 
 {-| internal types and decoders
 -}
@@ -953,27 +1001,28 @@ getQuestions sesh =
         , expect = Http.expectJson GotQuestions questionsDecoder
         }
 
+
 type alias Tag =
-  { tag : String }
+    { tag : String }
+
 
 tagDecoder : Decoder Tag
 tagDecoder =
-  map Tag
-    ( at [ "tag" ] string)
+    map Tag
+        (at [ "tag" ] string)
+
 
 tagsDecoder : Decoder (List Tag)
 tagsDecoder =
-  JD.list tagDecoder
+    JD.list tagDecoder
 
 
 getTags : Cmd Msg
 getTags =
-  Http.get
-    { url = "http://localhost:5001/get-tags"
-    , expect = Http.expectJson GotTags tagsDecoder
-    }
-
-
+    Http.get
+        { url = "http://localhost:5001/get-tags"
+        , expect = Http.expectJson GotTags tagsDecoder
+        }
 
 
 type alias Answer =
