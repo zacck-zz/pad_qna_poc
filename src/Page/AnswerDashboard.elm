@@ -684,7 +684,8 @@ view model =
                         , button [ onClick Reassign ] [ text "Reassign" ]
                         ]
                     , div []
-                        [ button [ onClick Logout ] [ text "Logout" ]
+                        [ p [] [ text ("Logged In as: " ++ Session.phoneString model.session) ]
+                        , button [ onClick Logout ] [ text "Logout" ]
                         ]
                     ]
                 , viewAnswersSection model
