@@ -1,6 +1,6 @@
 module Page.Landing exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
-import Html exposing (Html, button, div, input, label, text)
+import Html exposing (Html, button, div, input, label, text, p)
 import Html.Attributes exposing (class, type_)
 import Html.Events exposing (onClick, onInput)
 import Route
@@ -102,14 +102,12 @@ view _ =
         b =
             div [ class "container" ]
                 [ div [ class "landing-page" ]
-                    [ div [ class "file-form" ]
-                        [ label [] [ text "Phone Number:" ]
-                        , input [ type_ "text", onInput SetQueue ] []
-                        ]
-                    , div [ class "file-form" ]
-                        [ button [ onClick GoToMaster ] [ text "Master" ]
-                        , button [ onClick GoToQueue ] [ text "Set Queue" ]
-                        ]
+                    [ p [] [ button [ onClick GoToMaster ] [ text "Go to master inbox" ] ]
+                    , p [] [ text "or" ]
+                    , p [] [ label [] [ text "User:" ]
+                           , input [ type_ "text", onInput SetQueue ] []
+                           , button [ onClick GoToQueue ] [ text "Go to private inbox" ]
+                           ]
                     ]
                 ]
     in
