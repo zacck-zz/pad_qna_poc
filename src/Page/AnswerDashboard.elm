@@ -964,7 +964,7 @@ tagsDecoder =
 getTags : Cmd Msg
 getTags =
   Http.get
-    { url = "http://localhost:5000/get-tags"
+    { url = "http://localhost:5001/get-tags"
     , expect = Http.expectJson GotTags tagsDecoder
     }
 
