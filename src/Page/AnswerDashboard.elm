@@ -14,6 +14,8 @@ import Json.Encode as Encode
 import Route exposing (Route)
 import Select
 import Session exposing (Session)
+import Svg exposing (circle, svg)
+import Svg.Attributes exposing (color, cx, cy, height, r, width, viewBox)
 import Shared
 import Task
 import Url.Builder as UrlBuilder
@@ -750,10 +752,13 @@ viewRecordingForm { answerForm } =
                     text ""
 
                 Recording ->
-
-                    -- TODO red circle
-                    button [ onClick StopRecording ] [ text "Stop" ]
-
+                  div []
+                      [ div []
+                            [ svg [ height "50", width "50", viewBox "0 0 200 200"]
+                                  [ circle [Svg.Attributes.class "circle", cx "50", cy "50", r "50", color "red"] [] ]
+                            ]
+                      , button [ onClick StopRecording ] [ text "Stop" ]
+                      ]
                 _ ->
                     text ""
 
